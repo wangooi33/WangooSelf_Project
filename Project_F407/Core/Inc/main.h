@@ -35,6 +35,7 @@ extern "C" {
 #include "list.h"
 #include "task.h"
 #include "queue.h"
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/

@@ -21,6 +21,9 @@
 #include "adc.h"
 
 /* USER CODE BEGIN 0 */
+#include <string.h>
+
+uint16_t gADC1CaptureBuffer[ADC1_CAPTURE_BUF_MAXSIZE];
 
 /* USER CODE END 0 */
 
@@ -54,7 +57,7 @@ void MX_ADC1_Init(void)
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc1.Init.NbrOfConversion = 8;
   hadc1.Init.DMAContinuousRequests = ENABLE;
-  hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  hadc1.Init.EOCSelection = ADC_EOC_SEQ_CONV;
   if (HAL_ADC_Init(&hadc1) != HAL_OK)
   {
     Error_Handler();
@@ -180,7 +183,7 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* adcHandle)
     hdma_adc1.Init.MemInc = DMA_MINC_ENABLE;
     hdma_adc1.Init.PeriphDataAlignment = DMA_PDATAALIGN_HALFWORD;
     hdma_adc1.Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;
-    hdma_adc1.Init.Mode = DMA_NORMAL;
+    hdma_adc1.Init.Mode = DMA_CIRCULAR;
     hdma_adc1.Init.Priority = DMA_PRIORITY_LOW;
     hdma_adc1.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
     if (HAL_DMA_Init(&hdma_adc1) != HAL_OK)
@@ -238,5 +241,21 @@ void HAL_ADC_MspDeInit(ADC_HandleTypeDef* adcHandle)
 }
 
 /* USER CODE BEGIN 1 */
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
+{
+	if (hadc->Instance == ADC1)
+	{
+		MotorData_FromADC.Motor_IU   = gADC1CaptureBuffer[0];
+		MotorData_FromADC.Motor_IV   = gADC1CaptureBuffer[1];
+		MotorData_FromADC.Motor_IW   = gADC1CaptureBuffer[2];
+		MotorData_FromADC.Motor_VBUS = gADC1CaptureBuffer[3];
+		MotorData_FromADC.Motor_IBUS = gADC1CaptureBuffer[4];
+		MotorData_FromADC.Motor_EMFU = gADC1CaptureBuffer[5];
+		MotorData_FromADC.Motor_EMFV = gADC1CaptureBuffer[6];
+		MotorData_FromADC.Motor_EMFW = gADC1CaptureBuffer[7];
 
+		memset(gADC1CaptureBuffer, 0x00, sizeof(gADC1CaptureBuffer));
+
+	}
+}
 /* USER CODE END 1 */

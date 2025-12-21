@@ -6,7 +6,11 @@
 /* functions prototypes ---------------------------------------------*/
 /* variable ---------------------------------------------------------*/
 
-/* MSB-first CRC-CCITT(poly = 0x1021)字节查找表 */
+/**
+ * 算法		  :CRC-16-CCITT-FALSE
+ * 多项式POLY :0x1021
+ * 初始值:		  :0xFFFF
+ */
 const uint16_t crc_table[256]={
     0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50a5, 0x60c6, 0x70e7,
     0x8108, 0x9129, 0xa14a, 0xb16b, 0xc18c, 0xd1ad, 0xe1ce, 0xf1ef,

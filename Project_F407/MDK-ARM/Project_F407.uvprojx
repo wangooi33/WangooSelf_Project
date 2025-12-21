@@ -339,7 +339,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32F407xx</Define>
               <Undefine></Undefine>
-              <IncludePath>../Core/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F4xx/Include;../Drivers/CMSIS/Include;../Components/FreeRTOS/include;../Components/FreeRTOS/portable/RVDS/ARM_CM4F;../ASW/TaskManage</IncludePath>
+              <IncludePath>../Core/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F4xx/Include;../Drivers/CMSIS/Include;../Components/FreeRTOS/include;../Components/FreeRTOS/portable/RVDS/ARM_CM4F;../ASW/TaskManage;../ASW/CheckData;../ASW/MotorDataMgmt;../ASW/Communication;../BSW/adc</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -994,6 +994,61 @@
               <FileName>Task_Manage_cfg.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\ASW\TaskManage\Task_Manage_cfg.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>ASW/Communication</GroupName>
+          <Files>
+            <File>
+              <FileName>communicate.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\ASW\Communication\communicate.c</FilePath>
+            </File>
+            <File>
+              <FileName>communicate_cfg.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\ASW\Communication\communicate_cfg.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>ASW/MotorDataMgmt</GroupName>
+          <Files>
+            <File>
+              <FileName>MotorData_Mgmt.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\ASW\MotorDataMgmt\MotorData_Mgmt.c</FilePath>
+            </File>
+            <File>
+              <FileName>MotorData_Mgmt_cfg.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\ASW\MotorDataMgmt\MotorData_Mgmt_cfg.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>ASW/CheckData</GroupName>
+          <Files>
+            <File>
+              <FileName>check.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\ASW\CheckData\check.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>BSW/adc</GroupName>
+          <Files>
+            <File>
+              <FileName>w_adc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BSW\adc\w_adc.c</FilePath>
+            </File>
+            <File>
+              <FileName>w_adc_cfg.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BSW\adc\w_adc_cfg.c</FilePath>
             </File>
           </Files>
         </Group>

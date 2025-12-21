@@ -29,6 +29,9 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "Task_Manage.h"
+#include "w_adc.h"
+#include "MotorData_Mgmt.h"
+#include "communicate.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -96,12 +99,12 @@ int main(void)
   MX_USART1_UART_Init();
   MX_CRC_Init();
   MX_ADC1_Init();
-  MX_IWDG_Init();
   /* USER CODE BEGIN 2 */
+  Root_Task(NULL);
   HAL_TIM_Base_Start_IT(&htim10);
   HAL_UARTEx_ReceiveToIdle_DMA(&huart1,gU1TxRxBuf,U1_TXRX_BUFMAX);
-  Root_Task(NULL);
-  
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&gADC1CaptureBuffer, ADC1_CAPTURE_BUF_MAXSIZE);
+  MX_IWDG_Init();
   vTaskStartScheduler();
   /* USER CODE END 2 */
 

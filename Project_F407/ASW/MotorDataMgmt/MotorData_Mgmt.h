@@ -1,9 +1,9 @@
 /* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef _TASK_MANAGE_CFG_H
-#define _TASK_MANAGE_CFG_H
+#ifndef _MOTORDATA_MGMT_H
+#define _MOTORDATA_MGMT_H
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-
+#include "MotorData_Mgmt_cfg.h"
 
 /* macro ---------------------------------------------------------------------*/
 
@@ -16,12 +16,12 @@
 
 
 /* global variable -----------------------------------------------------------*/
-extern char SoftwareVer[5];
 
 /* functions prototypes ------------------------------------------------------*/
 
 
+#endif /* _MOTORDATA_MGMT_H */
 
-#endif /* _TASK_MANAGE_CFG_H */
+
 
 

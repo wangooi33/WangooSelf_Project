@@ -1,9 +1,9 @@
 /* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef _TASK_MANAGE_CFG_H
-#define _TASK_MANAGE_CFG_H
+#ifndef _W_ADC_H
+#define _W_ADC_H
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-
+#include "w_adc_cfg.h"
 
 /* macro ---------------------------------------------------------------------*/
 
@@ -16,12 +16,13 @@
 
 
 /* global variable -----------------------------------------------------------*/
-extern char SoftwareVer[5];
 
 /* functions prototypes ------------------------------------------------------*/
 
 
 
-#endif /* _TASK_MANAGE_CFG_H */
+#endif /* _W_ADC_H */
+
+
 
 

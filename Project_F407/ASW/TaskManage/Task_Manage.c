@@ -1,5 +1,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "Task_Manage.h"
+#include "communicate.h"
+#include "iwdg.h"
 /* typedef -----------------------------------------------------------*/
 wTaskHandle_st wTaskHandle;
 BaseType_t xReturn = pdPASS;
@@ -9,11 +11,13 @@ BaseType_t xReturn = pdPASS;
 
 /* variables ---------------------------------------------------------*/
 
+
 /* function prototypes -----------------------------------------------*/
 
 /* function implementation--------------------------------------------*/
 void AllTaskCreat(void *pvParameters);
 void Task01(void *pvParameters);
+void Task02(void *pvParameters);
 void Error_TaskCreate(uint8_t taskid);
 
 void Root_Task(void *pvParameters)
@@ -23,7 +27,7 @@ void Root_Task(void *pvParameters)
     					  (const char*   )"root_task", 
     					  (uint16_t      )512, 
     					  (void *        )NULL, 
-    					  (UBaseType_t   )0,
+    					  (UBaseType_t   )1,
     					  (TaskHandle_t *)&wTaskHandle.Root_TaskHandle);
 	if(pdPASS != xReturn)
 		Error_TaskCreate(taskid);
@@ -37,23 +41,28 @@ void AllTaskCreat(void *pvParameters)
 				(const char*   )"Task01", 
 				(uint16_t      )128, 
 				(void *        )NULL, 
-				(UBaseType_t   )0,
+				(UBaseType_t   )1,
 				(TaskHandle_t *)&wTaskHandle.Task1_TaskHandle);
 	if(pdPASS != xReturn)
 		Error_TaskCreate(taskid);
 	
 	taskid++;
 
-	
 
-	vTaskDelete(wTaskHandle.Root_TaskHandle);
 	taskEXIT_CRITICAL();
+	vTaskDelete(wTaskHandle.Root_TaskHandle);
 }
 
 void Task01(void *pvParameters)
 {
-	vTaskDelay(5);
+	while (1)
+	{
+		LED1_TOGGLE;
+		HAL_IWDG_Refresh(&hiwdg);
+		vTaskDelay(pdMS_TO_TICKS(200));
+	}
 }
+
 
 void Error_TaskCreate(uint8_t taskid)
 {

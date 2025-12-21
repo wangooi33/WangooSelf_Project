@@ -29,19 +29,19 @@ extern "C" {
 #include "main.h"
 
 /* USER CODE BEGIN Includes */
-
+#include "w_adc.h"
 /* USER CODE END Includes */
 
 extern ADC_HandleTypeDef hadc1;
 
 /* USER CODE BEGIN Private defines */
-
+#define ADC1_CAPTURE_BUF_MAXSIZE 8
 /* USER CODE END Private defines */
 
 void MX_ADC1_Init(void);
 
 /* USER CODE BEGIN Prototypes */
-
+extern uint16_t gADC1CaptureBuffer[ADC1_CAPTURE_BUF_MAXSIZE];
 /* USER CODE END Prototypes */
 
 #ifdef __cplusplus
