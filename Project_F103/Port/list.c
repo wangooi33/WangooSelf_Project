@@ -1,30 +1,27 @@
 #include "list.h"
 
-
-
-
-
 void ListInitialise( List_t * const pList )
 {
-	pList->pIndex = (ListItem_t *)(pList->ListEnd);
-	pList->uNumberOfItems = (UBaseType_t)0U;
+	pList->pIndex = ( ListItem_t * )&( pList->ListEnd );
+	pList->NumberOfItems = ( UBaseType_t )0U;
 	
-	pList->ListEnd.ItemValue = MAX_DELAY;
-	pList->ListEnd.pNext = (ListItem_t *)(pList->ListEnd);
-	pList->ListEnd.pPrevious = (ListItem_t *)(pList->ListEnd);
+	pList->ListEnd.ItemValue = portMAX_DEALY;
+	pList->ListEnd.pNext = ( ListItem_t * )&( pList->ListEnd );
+	pList->ListEnd.pPrevious = ( ListItem_t * )&( pList->ListEnd );
 }
+
 void ListInitialiseItem( ListItem_t * const pItem )
 {
-	pItem->pContainer == NULL;
+	pItem->pContainer = NULL;
 }
 
-/* xListEnd -> 最小 -> ... -> 最大 -> xListEnd */
+/* 链表升序排列:ListEnd -> value最小 -> ... -> value最大 -> ListEnd */
 void ListInsert( List_t * const pList, ListItem_t * const pNewListItem )
 {
-	ListItem_t *pIterator;
+	ListItem_t *pIterator;//迭代器
 	const TickType_t ValueOfInsertion = pNewListItem->ItemValue;
 
-	if( ValueOfInsertion == portMAX_DELAY )
+	if ( ValueOfInsertion == portMAX_DEALY )
 	{
 		pIterator = pList->ListEnd.pPrevious;
 	}
@@ -44,10 +41,11 @@ void ListInsert( List_t * const pList, ListItem_t * const pNewListItem )
 
 	pNewListItem->pContainer = ( void * ) pList;
 
-	( pList->uNumberOfItems )++;
+	( pList->NumberOfItems )++;
 }
-void ListInsertCur( List_t * const pList, ListItem_t * const pNewListItem )
+void ListInsertCurPrevious( List_t * const pList, ListItem_t * const pNewListItem )
 {
+	/* 插入到pIndex的前面,不在pIndex后面插入,好处是:不破坏当前轮转顺序 */
 	ListItem_t * const pIndex = pList->pIndex;
 
 	pNewListItem->pNext = pIndex;
@@ -58,7 +56,7 @@ void ListInsertCur( List_t * const pList, ListItem_t * const pNewListItem )
 
 	pNewListItem->pContainer = ( void * ) pList;
 
-	( pList->uNumberOfItems )++;
+	( pList->NumberOfItems )++;
 }
 UBaseType_t ListRemove( ListItem_t * const pListItemToRemove )
 {
@@ -67,15 +65,15 @@ UBaseType_t ListRemove( ListItem_t * const pListItemToRemove )
 	pListItemToRemove->pNext->pPrevious = pListItemToRemove->pPrevious;
 	pListItemToRemove->pPrevious->pNext = pListItemToRemove->pNext;
 
-	if( pList->pIndex == pListItemToRemove )
+	if ( pList->pIndex == pListItemToRemove )
 	{
 		pList->pIndex = pListItemToRemove->pPrevious;
 	}
 
-	pList->uNumberOfItems--;
+	pList->NumberOfItems--;
 	pListItemToRemove->pContainer = NULL;
 
-	return pList->uNumberOfItems;
+	return pList->NumberOfItems;
 }
 
 

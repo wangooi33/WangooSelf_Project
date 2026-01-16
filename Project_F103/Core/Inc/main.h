@@ -41,6 +41,8 @@ extern "C" {
 
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */
+extern volatile uint32_t platformCount_ms;
+extern volatile uint64_t platformCount_500us;
 
 /* USER CODE END EC */
 
@@ -50,11 +52,10 @@ extern "C" {
 /* USER CODE END EM */
 
 /* Exported functions prototypes ---------------------------------------------*/
-void Error_Handler(void);
+
 
 /* USER CODE BEGIN EFP */
-extern volatile uint32_t platformCount_ms;
-extern volatile uint64_t platformCount_500us;
+void Error_Handler(void);
 
 /* USER CODE END EFP */
 

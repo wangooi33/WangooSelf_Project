@@ -30,7 +30,7 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+const char SoftWareID[] = "W002";
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -61,6 +61,7 @@
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
+void Error_Handler(void);
 volatile uint32_t platformCount_ms = 0;
 volatile uint64_t platformCount_500us = 0;
 /* USER CODE END PFP */
