@@ -59,11 +59,18 @@ extern volatile TickType_t TickCount;
 extern TCB_t * volatile pCurrentTCB;
 
 /* functions prototypes ------------------------------------------------------*/
-BaseType_t TaskCreate( 	TaskFunction_t pTaskCode,const char * const pName,const uint16_t StackDepth,void * const pParameters,UBaseType_t Priority,TaskHandle_t * const pHandle );
+BaseType_t TaskCreate( TaskFunction_t pTaskCode,
+						  const char * const pName,
+						  const uint16_t StackDepth,
+						  void * const pParameters,
+						  UBaseType_t Priority,
+						  TaskHandle_t * const pHandle );
+void TaskDelete(    TaskHandle_t TaskToDelete );
 void TaskSuspendAll( void );
 BaseType_t TaskResumeAll( void );
 void TaskStartScheduler( void );
 
+BaseType_t SysTickCount( void );
 
 #ifdef __cplusplus
 }

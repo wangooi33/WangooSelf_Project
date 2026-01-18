@@ -2,7 +2,7 @@
 
 /*--------------------------------------------------------------------------------------*/
 
-TCB_t * volatile pCurrentTCB = NULL;										
+TCB_t * volatile pCurrentTCB = NULL;										/**/
 volatile UBaseType_t CurrentNumberOfTasks = ( UBaseType_t )0U;				/* 当前任务数量 */
 volatile UBaseType_t DeletedTasksWaitingCleanUp = ( UBaseType_t )0;			/* 需要清除的任务数量 */
 static volatile BaseType_t RequestPending = pdFALSE;						/* 请求任务切换 */
@@ -27,6 +27,24 @@ static List_t WaitingDeleteTaskList;										/* 等待被删除的任务 */
 
 
 static TaskHandle_t IdleTaskHandle = NULL;
+/*--------------------------------------------------------------------------------------*/
+static void DeleteTCB( TCB_t *pTCB );
+
+static void InitialiseNewTask( TaskFunction_t pTaskCode,
+									 const char * const pName,
+									 const uint16_t StackDepth,
+									 void * const pParameters,
+									 UBaseType_t Priority,
+									 TaskHandle_t * const pHandle, 
+									 TCB_t *pNewTCB );
+static void AddNewTaskToReadyList( TCB_t *pNewTCB );
+static void InitialiseTaskLists( void );
+static void IdleTask( void * pParameters );
+
+
+
+static void ResetNextTaskUnblockTime( void );
+BaseType_t SysTickCount( void );
 
 /*--------------------------------------------------------------------------------------*/
 
@@ -44,6 +62,13 @@ static TaskHandle_t IdleTaskHandle = NULL;
 	ListInsertCurPrevious( &( pReadyTasksLists[ pNewTCB->Priority ] ), &( pNewTCB->StateListItem ) );\
 }
 
+#define taskREADYLIST_PRIORITY_RESET( Priority )												\
+{																								\
+	if ( listGET_CURRENTLIST_LENTH( &( pReadyTasksLists[ Priority ] ) ) == ( UBaseType_t )0 )	\
+	{																							\
+		TopReadyPriority &= ~( 1 << Priority );													\
+	}																							\
+}
 
 #ifdef portENABLE_TICK_OVERFLOW_CHECK
 #define taskSWITCH_DELAYED_LISTS()									\
@@ -64,24 +89,6 @@ static TaskHandle_t IdleTaskHandle = NULL;
 	} while( 0 )
 #endif
 
-/*--------------------------------------------------------------------------------------*/
-static void DeleteTCB( TCB_t *pTCB );
-
-static void InitialiseNewTask( TaskFunction_t pTaskCode,
-									 const char * const pName,
-									 const uint16_t StackDepth,
-									 void * const pParameters,
-									 UBaseType_t Priority,
-									 TaskHandle_t * const pHandle, 
-									 TCB_t *pNewTCB );
-static void AddNewTaskToReadyList( TCB_t *pNewTCB );
-static void InitialiseTaskLists( void );
-static void IdleTask( void * pParameters );
-
-
-
-static void ResetNextTaskUnblockTime( void );
-static uint8_t RepairTick( void );
 /*--------------------------------------------------------------------------------------*/
 
 BaseType_t TaskCreate( 	TaskFunction_t pTaskCode,
@@ -165,7 +172,7 @@ BaseType_t TaskResumeAll( void )
 				{
 					do
 					{
-						if ( RepairTick() != pdFALSE )
+						if ( SysTickCount() != pdFALSE )
 						{
 							RequestPending = pdTRUE;
 						}
@@ -194,7 +201,7 @@ void TaskStartScheduler( void )
 	
 	//1.创建空闲任务
 	xReturn = TaskCreate(IdleTask, 
-						 "taskIDLE_TASK_NAME",
+						 taskIDLE_TASK_NAME,
 						 ( uint16_t )127,
 						 ( void * )NULL, 
 						 taskIDLE_TASK_PRIORITY, 
@@ -203,7 +210,7 @@ void TaskStartScheduler( void )
 	if ( xReturn == pdPASS )
 	{
 		//2.创建软件定时器起始任务
-
+		
 
 		//3.初始化系统
 		PortSetBASEPRI(0);
@@ -224,8 +231,128 @@ void TaskStartScheduler( void )
 	}
 
 }
+void TaskDelete(    TaskHandle_t TaskToDelete )
+{
+	TCB_t *pTCB;
+	PortEnterCritical();
+	{
+		pTCB = ( TaskToDelete == NULL ) ? ( TCB_t * )pCurrentTCB : ( TCB_t * )TaskToDelete;
 
-/*--------------------------------------------------------------------------------------*/
+		//1.从链表中删除
+		if ( ListRemove( &( pTCB->StateListItem ) ) == ( UBaseType_t )0 )
+		{
+			//当前无任务
+			taskREADYLIST_PRIORITY_RESET( pTCB->Priority );
+		}
+		if ( listGET_LISTITEM_CONTAINER( &( pTCB->EventListItem ) ) != NULL )
+		{
+			ListRemove( &( pTCB->EventListItem ) );
+		}
+
+		//2.任务切换
+		if ( pCurrentTCB == pTCB )
+		{
+			//移到待删除链表
+			ListInsertCurPrevious( &( WaitingDeleteTaskList ), &( pTCB->StateListItem ));
+			++DeletedTasksWaitingCleanUp;
+		}
+		else
+		{
+			DeleteTCB( pTCB );
+			//如果下次预计解锁时间指的是刚刚被删除的任务,则重置该时间
+			ResetNextTaskUnblockTime();
+		}
+
+	}
+	PortExitCritical();
+
+	//2.如果当前正在运行的任务刚刚被删除,则强制重新安排任务时间
+	if ( pCurrentTCB == pTCB )
+	{
+		portREQUEST_TASK_SWITCH();
+	}
+}
+BaseType_t SysTickCount( void )
+{
+	TCB_t *pTCB;
+	UBaseType_t TickValue;
+	BaseType_t SwitchRequired;
+
+	/*tick++:
+		1.进行整个延时链表到就绪链表转换,直到当前tick < 延时时间.
+		2.时间片轮询
+	*/
+	if ( SchedulerSuspended == ( UBaseType_t )pdFALSE )
+	{
+		TickType_t CurrentTick = TickCount + ( TickType_t )1;
+		TickCount = CurrentTick;
+		if ( TickCount == ( TickType_t )0 )
+		{
+			//溢出
+			taskSWITCH_DELAYED_LISTS();
+		}
+		
+		if ( CurrentTick > NextTaskUnblockTime )
+		{
+			for ( ;; )
+			{
+				if ( listIS_EMPTY( pDelayedTaskList ) == pdTRUE )
+				{
+					NextTaskUnblockTime = portMAX_DEALY;
+					break;
+				}
+				else
+				{
+					pTCB = ( TCB_t * )listGET_ENDNEXT_LISTITEM_OWNER( pDelayedTaskList );
+					TickValue = listGET_LISTITEM_VALUE( &( pTCB->StateListItem ) );
+					if ( CurrentTick < TickValue )
+					{
+						//链表按升序排列,若值已经小于ItemValue,则视为结束
+						NextTaskUnblockTime = TickValue;
+						break;
+					}
+
+					//切换链表
+					( void )ListRemove( &( pTCB->StateListItem ) );
+					if ( listGET_LISTITEM_CONTAINER( &( pTCB->EventListItem ) ) != NULL  )
+					{
+						( void )ListRemove( &( pTCB->EventListItem ) );
+					}
+					AddNewTaskToReadyList( pTCB );
+
+					//优先级抢占
+
+					if ( pTCB->Priority > pCurrentTCB->Priority )
+					{
+						SwitchRequired = pdTRUE;
+					}
+				}
+			}
+			
+		}
+		
+		//同优先级时间片轮询
+		if ( listGET_CURRENTLIST_LENTH( &( pReadyTasksLists[ pCurrentTCB->Priority ] ) ) > ( UBaseType_t )1 )
+		{
+			SwitchRequired = pdTRUE;
+		}
+	}
+	//亏欠时间++
+	else
+	{
+		++PendedTicks;
+	}
+
+	//防止重复触发PendSV
+	if ( RequestPending == pdTRUE )
+	{
+		SwitchRequired = pdTRUE;
+	}
+
+	return SwitchRequired;
+}
+
+/*------------------------- -------------------------------------------------------------*/
 static void DeleteTCB( TCB_t *pTCB )
 {
 	vHeapFree( pTCB->pStack );
@@ -398,85 +525,5 @@ static void ResetNextTaskUnblockTime( void )
 		pTCB = ( TCB_t * )listGET_ENDNEXT_LISTITEM_OWNER( pDelayedTaskList );
 		NextTaskUnblockTime = listGET_LISTITEM_VALUE( &( pTCB->StateListItem ) );
 	}
-}
-static uint8_t RepairTick( void )
-{
-	TCB_t *pTCB;
-	UBaseType_t TickValue;
-	BaseType_t SwitchRequired;
-
-	/*tick++:
-		1.进行整个延时链表到就绪链表转换,直到当前tick < 延时时间.
-		2.时间片轮询
-	*/
-	if ( SchedulerSuspended == ( UBaseType_t )pdFALSE )
-
-	{
-		TickType_t CurrentTick = TickCount + ( TickType_t )1;
-		TickCount = CurrentTick;
-		if ( TickCount == ( TickType_t )0 )
-		{
-			//溢出
-			taskSWITCH_DELAYED_LISTS();
-		}
-		
-		if ( CurrentTick > NextTaskUnblockTime )
-		{
-			for ( ;; )
-			{
-				if ( listIS_EMPTY( pDelayedTaskList ) == pdTRUE )
-				{
-					NextTaskUnblockTime = portMAX_DEALY;
-					break;
-				}
-				else
-				{
-					pTCB = ( TCB_t * )listGET_ENDNEXT_LISTITEM_OWNER( pDelayedTaskList );
-					TickValue = listGET_LISTITEM_VALUE( &( pTCB->StateListItem ) );
-					if ( CurrentTick < TickValue )
-					{
-						//链表按升序排列,若值已经小于ItemValue,则视为结束
-						NextTaskUnblockTime = TickValue;
-						break;
-					}
-
-					//切换链表
-					( void )ListRemove( &( pTCB->StateListItem ) );
-					if ( listFET_LISTITEM_CONTAINER( &( pTCB->EventListItem ) ) != NULL  )
-					{
-						( void )ListRemove( &( pTCB->EventListItem ) );
-					}
-					AddNewTaskToReadyList( pTCB );
-
-					//优先级抢占
-
-					if ( pTCB->Priority > pCurrentTCB->Priority )
-					{
-						SwitchRequired = pdTRUE;
-					}
-				}
-			}
-			
-		}
-		
-		//同优先级时间片轮询
-		if ( listGET_CURRENTLIST_LENTH( &( pReadyTasksLists[ pCurrentTCB->Priority ] ) ) > ( UBaseType_t )1 )
-		{
-			SwitchRequired = pdTRUE;
-		}
-	}
-	//亏欠时间++
-	else
-	{
-		++PendedTicks;
-	}
-
-	//防止重复触发PendSV
-	if ( RequestPending == pdTRUE )
-	{
-		SwitchRequired = pdTRUE;
-	}
-
-	return SwitchRequired;
 }
 

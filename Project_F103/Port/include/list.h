@@ -46,14 +46,14 @@ typedef struct LIST
 
 /* functions prototypes ------------------------------------------------------*/
 
-#define  listIS_EMPTY( pList )                       ( ( BaseType_t )( ( pList )->NumberOfItems == 0 ) )
+#define  listIS_EMPTY( pList )                      ( ( BaseType_t )( ( pList )->NumberOfItems == 0 ) )
 
 #define  listSET_LISTITEM_VALUE( pListItem,value )  ( ( pListItem )->ItemValue = value )
 #define  listSET_LISTITEM_OWNER( pListItem,owner )  ( ( pListItem )->pOwner = ( void * )owner )
 
 #define  listGET_LISTITEM_VALUE( pListItem )        ( ( pListItem )->ItemValue )
 #define  listGET_LISTITEM_OWNER( pListItem )        ( ( pListItem )->pOwner )
-#define  listFET_LISTITEM_CONTAINER( pListItem )    ( ( pListItem )->pContainer )
+#define  listGET_LISTITEM_CONTAINER( pListItem )    ( ( pListItem )->pContainer )
 #define  listGET_ENDNEXT_LISTITEM_OWNER( pList )    ( ( &( ( pList )->ListEnd ) )->pNext->pOwner )
 #define  listGET_CURRENTLIST_LENTH( pList )         ( ( pList )->NumberOfItems )
 

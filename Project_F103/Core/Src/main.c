@@ -30,21 +30,12 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-const char SoftWareID[] = "W002";
+const char SoftWareID[] = "W003";
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define TASK_PERIOD_500US     1
-#define TASK_PERIOD_1MS       1
-#define TASK_PERIOD_2MS       2
-#define TASK_PERIOD_5MS       5
-#define TASK_PERIOD_10MS      10
-#define TASK_PERIOD_20MS      20
-#define TASK_PERIOD_50MS      50
-#define TASK_PERIOD_100MS     100
-#define TASK_PERIOD_500MS     500
-#define TASK_PERIOD_1000MS    1000
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -62,126 +53,11 @@ const char SoftWareID[] = "W002";
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
 void Error_Handler(void);
-volatile uint32_t platformCount_ms = 0;
-volatile uint64_t platformCount_500us = 0;
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-uint8_t tx[5] = {'h','e','l','l','o'};
-uint32_t lc_GetTick(void)
-{
-  return platformCount_ms;
-}
-uint64_t lc_GetTick_500us(void)
-{
-  return platformCount_500us;
-}
-void Task_500us()
-{
-	
-}
-void Task_1ms()
-{
-
-}
-void Task_2ms()
-{
-
-}
-void Task_5ms()
-{
-
-}
-void Task_10ms()
-{
-
-}
-void Task_20ms()
-{	
-
-}
-void Task_50ms()
-{
-
-}
-void Task_100ms()
-{
-
-}
-void Task_500ms()
-{
-
-}
-void Task_1000ms()
-{
-	LED1_TOGGLE;
-	BEEP_TOGGLE;
-	HAL_UART_Transmit_DMA(&huart1, tx, sizeof(tx));
-}
-void TaskSchedule()
-{
-	static uint64_t startValue_500us = 0;
-    static uint32_t startValue_1ms = 0;
-    static uint32_t startValue_2ms = 0;
-    static uint32_t startValue_5ms = 0;
-    static uint32_t startValue_10ms = 0;
-    static uint32_t startValue_20ms = 0;
-    static uint32_t startValue_50ms = 0;
-    static uint32_t startValue_100ms = 0;
-    static uint32_t startValue_500ms = 0;
-    static uint32_t startValue_1000ms = 0;
-    if (lc_GetTick_500us() - startValue_500us >= TASK_PERIOD_500US)
-    {
-        startValue_500us = lc_GetTick_500us();
-        Task_500us();
-    }
-    if (lc_GetTick() - startValue_1ms >= TASK_PERIOD_1MS)
-    {
-        startValue_1ms = lc_GetTick();
-        Task_1ms();
-    }
-    if (lc_GetTick() - startValue_2ms >= TASK_PERIOD_2MS)
-    {
-    	startValue_2ms = lc_GetTick();
-        Task_2ms();
-    }
-    if (lc_GetTick() - startValue_5ms >= TASK_PERIOD_5MS)
-    {
-    	startValue_5ms = lc_GetTick();
-        Task_5ms();
-    }
-    if (lc_GetTick() - startValue_10ms >= TASK_PERIOD_10MS)
-    {
-    	startValue_10ms = lc_GetTick();
-        Task_10ms();
-    }
-    if (lc_GetTick() - startValue_20ms >= TASK_PERIOD_20MS)
-    {
-    	startValue_20ms = lc_GetTick();
-        Task_20ms();
-    }
-    if (lc_GetTick() - startValue_50ms >= TASK_PERIOD_50MS)
-    {
-    	startValue_50ms = lc_GetTick();
-        Task_50ms();
-    }
-    if (lc_GetTick() - startValue_100ms >= TASK_PERIOD_100MS)
-    {
-    	startValue_100ms = lc_GetTick();
-        Task_100ms();
-    }
-    if (lc_GetTick() - startValue_500ms >= TASK_PERIOD_500MS)
-    {
-    	startValue_500ms = lc_GetTick();
-        Task_500ms();
-    }
-    if (lc_GetTick() - startValue_1000ms >= TASK_PERIOD_1000MS)
-    {
-        startValue_1000ms = lc_GetTick();
-	    Task_1000ms();
-    }
-}
 
 /* USER CODE END 0 */
 
@@ -226,7 +102,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    TaskSchedule();
+    
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

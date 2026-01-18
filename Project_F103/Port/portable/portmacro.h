@@ -21,7 +21,8 @@ typedef void (*TaskFunction_t)( void * );
 typedef uint32_t StackType_t;
 /* macro --------------------------------------------------------------------*/
 
-#define SVC_Handler PortSVC_Handler
+#define PortSVC_Handler				SVC_Handler
+#define PortSysTick_Handler			SysTick_Handler
 
 #define port_INLINE					__forceinline
 
@@ -53,12 +54,12 @@ typedef uint32_t StackType_t;
 #define portSYSTICK_LOAD					( * ( ( volatile uint32_t * ) 0xE000E014 ) )
 
 
-//中断优先级
+//中断优先级(值越小,优先级越高)
 #define portNVIC_IPR						( 0xE000E3F0 )
 #define portUSE_FIREST_INTERRUPT_NUMBER		( 16 )
 #define portMASK_AIRCR_PRIGROUP				( 0x07 << 8UL )
 #define portAIRCR_PRIGROUP_SHIFT			( 8UL )
-//能安全调用API函数的“最高中断优先级阈值”
+//能安全调用API函数的“最高中断优先级阈值”, > 5 可以调用。
 #define portPRIORITY_MAX_INTERRUPT_SYSTEMCALL	5
 #define portPRIORITY_MAX_SYSTEMCALL_LIMIT 	( portPRIORITY_MAX_INTERRUPT_SYSTEMCALL << (8 - portPIRO_BITS) )
 //SHPR3:SCB->SHPR3基址:0xE000ED20,通过查询Cortex-M内核文档得知:PendSV优先级的地址在0xE000_ED22,则
@@ -110,6 +111,7 @@ void vHeapFree( void * pDel );
 
 void PortRaiseBASEPRI( void );
 void PortSetBASEPRI( uint32_t ulBASEPRI );
+
 void PortEnterCritical( void );
 void PortExitCritical( void );
 StackType_t *pPortInitialiseStack( StackType_t *pTopOfStack, TaskFunction_t pCode, void *pParameters );

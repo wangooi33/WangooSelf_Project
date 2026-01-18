@@ -114,11 +114,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
     if (htim->Instance == TIM1)
     {
-        platformCount_500us++;
-        if (platformCount_500us % 2 == 0)
-        {
-        	platformCount_ms++;
-        }
+       
     }	
 	if(htim->Instance == TIM6)
 	{

@@ -151,6 +151,20 @@ UBaseType_t PortStartScheduler( void )
 	/* Should not get here! */
 	return 0;
 }
+
+void PortSysTick_Handler( void )
+{
+	PortRaiseBASEPRI();
+	{
+		if ( SysTickCount() != pdFAIL )
+		{
+			//请求一次PendSV中断
+			portSCB_ICSR = portICSR_PENDSV_BITSET;
+		}
+	}
+	PortSetBASEPRI(0);
+}
+
 /*--------------------------------------------------------------------------------------*/
 
 static void PortSetupTimerInterrupt( void )
@@ -170,7 +184,7 @@ static void PortSetupTimerInterrupt( void )
 
 static void TaskExitError( void )
 {
-	/*实现任务的函数不能退出或试图返回给调用者,如果任务想要退出,应调用TaskDelete。
+	/* 实现任务的函数不能退出或试图返回给调用者,如果任务想要退出,应调用TaskDelete。
 	所以,LR中存储这个函数地址,来查看任务是否返回 */
 	portASSERT( CritialNestCount == ~0UL );
 	PortRaiseBASEPRI();
