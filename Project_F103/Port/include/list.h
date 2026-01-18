@@ -56,6 +56,18 @@ typedef struct LIST
 #define  listGET_LISTITEM_CONTAINER( pListItem )    ( ( pListItem )->pContainer )
 #define  listGET_ENDNEXT_LISTITEM_OWNER( pList )    ( ( &( ( pList )->ListEnd ) )->pNext->pOwner )
 #define  listGET_CURRENTLIST_LENTH( pList )         ( ( pList )->NumberOfItems )
+//跳过哨兵节点，把下一个 TCB 拿出来
+#define listGET_OWNER_OF_NEXT_ENTRY( pTCB, pList )											\
+{																							\
+	List_t * const pConstList = ( pList );													\
+	( pConstList )->pIndex = ( pConstList )->pIndex->pNext;									\
+	if ( ( void * ) ( pConstList )->pIndex == ( void * ) &( ( pConstList )->ListEnd ) )		\
+	{																						\
+		( pConstList )->pIndex = ( pConstList )->pIndex->pNext;								\
+	}																						\
+	( pTCB ) = ( pConstList )->pIndex->pOwner;												\
+}
+
 
 /**
   * @function name: 

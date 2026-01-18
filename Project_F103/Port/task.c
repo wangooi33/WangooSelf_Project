@@ -1,11 +1,12 @@
 #include "task.h"
+#include <string.h>
 
 /*--------------------------------------------------------------------------------------*/
 
 TCB_t * volatile pCurrentTCB = NULL;										/**/
 volatile UBaseType_t CurrentNumberOfTasks = ( UBaseType_t )0U;				/* 当前任务数量 */
 volatile UBaseType_t DeletedTasksWaitingCleanUp = ( UBaseType_t )0;			/* 需要清除的任务数量 */
-static volatile BaseType_t RequestPending = pdFALSE;						/* 请求任务切换 */
+static volatile BaseType_t YieldPending = pdFALSE;							/* 待处理 */
 
 static volatile UBaseType_t SchedulerRunning = pdFALSE;						/* 调度器运行状态 */
 static volatile UBaseType_t SchedulerSuspended	= ( UBaseType_t )pdFALSE;	/* 调度器挂起状态 */
@@ -47,14 +48,56 @@ static void ResetNextTaskUnblockTime( void );
 BaseType_t SysTickCount( void );
 
 /*--------------------------------------------------------------------------------------*/
+#define taskRECORD_READY_PRIORITY( Priority, ReadyPriorities ) ( ReadyPriorities ) |= ( 1UL << ( Priority ) )
+#define taskRESET_READY_PRIORITY( Priority, ReadyPriorities ) ( ReadyPriorities ) &= ~( 1UL << ( Priority ) )
+//最高置位 bit 的索引(数值最大优先级) = 31 - 前导零数量
+#define taskGET_HIGHEST_PRIORITY( TopPriority, ReadyPriorities ) TopPriority = ( 31UL - ( uint32_t ) __clz( ( ReadyPriorities ) ) )
 
-#define  taskREADYLIST_PRIORITY_ITERATE( Priority )			\
-{															\
-	if ( TopReadyPriority < Priority )						\
-	{														\
-		TopReadyPriority = Priority;						\
-	}														\
-}
+//1:优先级使用位图法
+#if 1
+	#define  taskREADYLIST_PRIORITY_ITERATE( Priority )			\
+	{															\
+		taskRECORD_READY_PRIORITY( Priority,TopReadyPriority ); \
+	}
+
+	#define taskREADYLIST_PRIORITY_RESET( Priority )			\
+	{															\
+		taskRESET_READY_PRIORITY( Priority,TopReadyPriority );  \
+	}
+
+	//取出最高优先级链表中的下一个任务
+	#define taskSELECT_HIGHEST_PRIORITY_TASK()												\
+	{																						\
+		UBaseType_t TopPriority;															\
+																							\
+		taskGET_HIGHEST_PRIORITY( TopPriority, TopReadyPriority );							\
+		listGET_OWNER_OF_NEXT_ENTRY( pCurrentTCB, &( pReadyTasksLists[ TopPriority ] ) );	\
+	}
+#else
+	#define  taskREADYLIST_PRIORITY_ITERATE( Priority )			\
+	{															\
+		if ( TopReadyPriority < Priority )						\
+		{														\
+			TopReadyPriority = Priority;						\
+		}														\
+	}
+
+	#define taskREADYLIST_PRIORITY_RESET( Priority )
+
+	#define taskSELECT_HIGHEST_PRIORITY_TASK()												\
+	{																						\
+		UBaseType_t TopPriority = TopReadyPriority;											\
+																							\
+		while( listIS_EMPTY( &( pReadyTasksLists[ TopPriority ] ) ) )						\
+		{																					\
+			--TopPriority;																	\
+		}																					\
+																							\
+		listGET_OWNER_OF_NEXT_ENTRY( pCurrentTCB, &( pReadyTasksLists[ TopPriority ] ) );	\
+		TopReadyPriority = TopPriority;														\
+	}
+#endif
+
 
 #define taskREADYLIST_ADDTASK( pNewTCB )															 \
 {																									 \
@@ -62,31 +105,23 @@ BaseType_t SysTickCount( void );
 	ListInsertCurPrevious( &( pReadyTasksLists[ pNewTCB->Priority ] ), &( pNewTCB->StateListItem ) );\
 }
 
-#define taskREADYLIST_PRIORITY_RESET( Priority )												\
-{																								\
-	if ( listGET_CURRENTLIST_LENTH( &( pReadyTasksLists[ Priority ] ) ) == ( UBaseType_t )0 )	\
-	{																							\
-		TopReadyPriority &= ~( 1 << Priority );													\
-	}																							\
-}
-
 #ifdef portENABLE_TICK_OVERFLOW_CHECK
-#define taskSWITCH_DELAYED_LISTS()									\
-	do {															\
-		const TickType_t NextTick = TickCount + ( TickType_t ) 1;	\
-																	\
-		/* 溢出只能发生在“加 1 的那一刻”,不加 1 无法判断 */			                \
-		if( NextTick == ( TickType_t ) 0U )							\
-		{															\
-			List_t *pTemp;											\
-			pTemp = pDelayedTaskList;								\
-			pDelayedTaskList = pOverflowDelayedTaskList;			\
-			pOverflowDelayedTaskList = pTemp;						\
-																	\
-			NumOfOverflows++;										\
-			ResetNextTaskUnblockTime();								\
-		}															\
-	} while( 0 )
+	#define taskSWITCH_DELAYED_LISTS()									\
+		do {															\
+			const TickType_t NextTick = TickCount + ( TickType_t ) 1;	\
+																		\
+			/* 溢出只能发生在“加 1 的那一刻”,不加 1 无法判断 */			                \
+			if( NextTick == ( TickType_t ) 0U )							\
+			{															\
+				List_t *pTemp;											\
+				pTemp = pDelayedTaskList;								\
+				pDelayedTaskList = pOverflowDelayedTaskList;			\
+				pOverflowDelayedTaskList = pTemp;						\
+																		\
+				NumOfOverflows++;										\
+				ResetNextTaskUnblockTime();								\
+			}															\
+		} while( 0 )
 #endif
 
 /*--------------------------------------------------------------------------------------*/
@@ -158,7 +193,7 @@ BaseType_t TaskResumeAll( void )
 					AddNewTaskToReadyList( pTCB );
 					if ( pTCB->Priority > pCurrentTCB->Priority )
 					{
-						RequestPending = pdTRUE;
+						YieldPending = pdTRUE;
 					}
 					
 				}
@@ -174,7 +209,7 @@ BaseType_t TaskResumeAll( void )
 					{
 						if ( SysTickCount() != pdFALSE )
 						{
-							RequestPending = pdTRUE;
+							YieldPending = pdTRUE;
 						}
 						CurrentPendTick--;
 					}while ( CurrentPendTick > 0U );
@@ -182,8 +217,8 @@ BaseType_t TaskResumeAll( void )
 				}
 					
 				
-				//防止重复触发PendSV
-				if ( AlreadyRequest != pdFALSE )
+				//挂起期间欠的所有切换，合并成一次 PendSV
+				if ( YieldPending != pdFALSE )
 				{
 					AlreadyRequest = pdTRUE;
 					portREQUEST_TASK_SWITCH();
@@ -344,12 +379,32 @@ BaseType_t SysTickCount( void )
 	}
 
 	//防止重复触发PendSV
-	if ( RequestPending == pdTRUE )
+	if ( YieldPending == pdTRUE )
 	{
 		SwitchRequired = pdTRUE;
 	}
 
 	return SwitchRequired;
+}
+void TaskSwitchContext( void )
+{
+	//任务切换只能在调度器运行时进行
+	if ( SchedulerSuspended != ( UBaseType_t )pdFALSE )
+	{
+		YieldPending = pdTRUE;
+	}
+	else
+	{
+		YieldPending = pdFALSE;
+
+		//1.计算pCurrentTCB->RunTimeCounter,需要借助定时器
+		
+		//2.检查栈溢出
+		portCHEAK_STACK_OVERFLOW();
+
+		//3.任务切换
+		taskSELECT_HIGHEST_PRIORITY_TASK();
+	}
 }
 
 /*------------------------- -------------------------------------------------------------*/
@@ -370,6 +425,13 @@ static void InitialiseNewTask( TaskFunction_t pTaskCode,
 {
 	StackType_t *pTopOfStack;
 	UBaseType_t x;
+
+	//从任务栈起始地址开始,把整个栈空间全部填成同一个字节值(0xA5)
+	#if( portENABLE_STACK_OVERFLOW_CHECK == 1 )
+	{
+		( void ) memset( pNewTCB->pStack, ( int )taskSTACK_FILL_BYTE, ( size_t )StackDepth * sizeof( StackType_t ) );
+	}
+	#endif 
 
 	//1.字节对齐(向下)
 	pTopOfStack = pNewTCB->pStack + ( StackDepth - ( uint32_t )1 );

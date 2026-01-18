@@ -23,6 +23,7 @@ typedef uint32_t StackType_t;
 
 #define PortSVC_Handler				SVC_Handler
 #define PortSysTick_Handler			SysTick_Handler
+#define PortPendSV_Handler			PendSV_Handler
 
 #define port_INLINE					__forceinline
 
@@ -92,22 +93,13 @@ typedef uint32_t StackType_t;
 #define portENABLE_PRIORITY_CALIBRATION		1
 //浮点计算功能(注意:Cortex-M3不带FPU)
 #define portENABLE_FPU 						0
-
-
-/* function -------------------------------------------------------------------------*/
-
-//请求一次 PendSV 上下文切换,仅做请求,并不立刻切换。15->等待全系统范围内的读 + 写完成。
-#define		portREQUEST_TASK_SWITCH()			\
-{												\
-	portSCB_ICSR = portICSR_PENDSV_BITSET;		\
-	__dsb(15);									\
-	__isb(15);									\
-}
-
+//栈溢出检查
+#define portENABLE_STACK_OVERFLOW_CHECK		1
 
 /* functions prototypes ------------------------------------------------------------*/
 void *pHeapMalloc( size_t WantedSize );
 void vHeapFree( void * pDel );
+void StackOverflowHook(TaskHandle_t Task,char *pTaskName);
 
 void PortRaiseBASEPRI( void );
 void PortSetBASEPRI( uint32_t ulBASEPRI );
@@ -116,6 +108,40 @@ void PortEnterCritical( void );
 void PortExitCritical( void );
 StackType_t *pPortInitialiseStack( StackType_t *pTopOfStack, TaskFunction_t pCode, void *pParameters );
 UBaseType_t PortStartScheduler( void );
+
+void PortSysTick_Handler( void );
+void PortSVC_Handler( void );
+void PortPendSV_Handler(void);
+
+
+/* function -------------------------------------------------------------------------*/
+
+//请求一次 PendSV 上下文切换,仅做请求,并不立刻切换。15->等待全系统范围内的读 + 写完成。
+#define portREQUEST_TASK_SWITCH()				\
+{												\
+	portSCB_ICSR = portICSR_PENDSV_BITSET;		\
+	__dsb(15);									\
+	__isb(15);									\
+}
+
+//检查当前栈是否溢出
+#if portENABLE_STACK_OVERFLOW_CHECK 
+	#define portCHEAK_STACK_OVERFLOW()												\
+	{																				\
+		const uint32_t * const pStack = ( uint32_t * )pCurrentTCB->pStack;			\
+		const uint32_t CheckValue = ( uint32_t )0xA5A5A5A5;							\
+																					\
+		if ( pStack[ 0 ] != CheckValue												\
+			|| pStack[ 1 ] != CheckValue											\
+			|| pStack[ 2 ] != CheckValue											\
+			|| pStack[ 3 ] != CheckValue )											\
+		{																			\
+			StackOverflowHook( ( TaskHandle_t )pCurrentTCB,pCurrentTCB->pTaskName); \
+		}																			\
+	}
+#endif
+
+/* --------------------------------------------------------------------------------*/
 
 
 #ifdef __cplusplus

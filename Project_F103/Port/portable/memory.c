@@ -119,6 +119,10 @@ void vHeapFree( void * pDel )
 		}
 	}		
 }
+void StackOverflowHook(TaskHandle_t Task,char *pTaskName)
+{
+	
+}
 
 /*------------------------------------------------------------------*/
 

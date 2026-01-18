@@ -10,11 +10,17 @@ extern TCB_t * volatile pCurrentTCB;
 
 /*--------------------------------------------------------------------------------------*/
 static void PortSetupTimerInterrupt( void );
-static void PortEnableVFP( void );
-static void PortStartFirstTask( void );
-static void PortSVC_Handler( void );
-static void PortSetupTimerInterrupt( void );
 static void TaskExitError( void );
+
+/* 汇编 */
+void PortEnableVFP( void );
+void PortStartFirstTask( void );
+
+/* 中断 */
+void PortSysTick_Handler( void );
+void PortSVC_Handler( void );
+void PortPendSV_Handler(void);
+
 /*--------------------------------------------------------------------------------------*/
 #define		portASSERT( x )		if( ( x ) == 0 ) { PortRaiseBASEPRI();for( ;; );}
 
@@ -208,9 +214,15 @@ __asm void PortEnableVFP( void )
 	nop
 }
 
+/**
+ * @note:
+ *    把主栈指针 MSP 恢复成“芯片刚上电时应有的状态”
+ *    (1)ldr r0, =0xE000ED08	:寄存器地址
+ *    (2)ldr r0, [r0]			:向量表基地址
+ *    (3)ldr r0, [r0]			:vector[0]
+ */
 __asm void PortStartFirstTask( void )
 {
-	/* 把MSP设为“向量表第0项里存的值 */
 	ldr r0, =0xE000ED08
 	ldr r0, [r0]
 	ldr r0, [r0]
@@ -229,25 +241,84 @@ __asm void PortStartFirstTask( void )
 	nop
 }
 
+/**
+ * @note:
+ *    (1)r3 = &pxCurrentTCB
+ *    (2)r1 = pxCurrentTCB
+ *    (3)r0 = pxCurrentTCB->pxTopOfStack
+ */
 __asm void PortSVC_Handler( void )
 {
 	IMPORT pCurrentTCB
-	/* r3 = &pxCurrentTCB , r1 = pxCurrentTCB , r0 = pxCurrentTCB->pxTopOfStack. */
+		
 	ldr r3, =pCurrentTCB
 	ldr r1, [r3]
 	ldr r0, [r1]
 
-	/* 让psp指向,硬件栈的r0 */
 	ldmia r0!, {r4-r11, r14}
 	msr psp, r0
 	isb
 	
-	/* 不屏蔽中断 */
 	mov r0, #0
 	msr basepri, r0
 
 	bx r14
 }
 
+/**
+ * @note:
+ *    (1)ldr r3, =pxCurrentTCB	:&pCurrentTCB
+ *    (2)ldr r2, [r3]			:*(&pCurrentTCB) = pCurrentTCB
+ */
+__asm void PortPendSV_Handler(void)
+{
+	extern CritialNestCount;
+	extern pCurrentTCB;
+	extern TaskSwitchContext;
 
+	
+	PRESERVE8
+	
+	mrs r0, psp
+	isb
+
+	ldr r3, =pCurrentTCB
+	ldr r2, [r3]
+
+	#if portENABLE_FPU
+		tst r14, #0x10
+		it eq
+		vstmdbeq r0!, {s16-s31}
+	#endif
+
+	stmdb r0!, {r4-r11, r14}
+
+	str r0, [r2]
+
+	stmdb sp!, {r0, r3}
+	mov r0, #portPRIORITY_MAX_SYSTEMCALL_LIMIT
+	msr basepri, r0
+	dsb
+	isb
+	bl TaskSwitchContext
+	mov r0, #0
+	msr basepri, r0
+	ldmia sp!, {r0, r3}
+
+	ldr r1, [r3]
+	ldr r0, [r1]
+
+	ldmia r0!, {r4-r11, r14}
+
+	#if portENABLE_FPU
+		tst r14, #0x10
+		it eq
+		vldmiaeq r0!, {s16-s31}
+	#endif
+
+	msr psp, r0
+	isb
+
+	bx r14
+}
 

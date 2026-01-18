@@ -15,6 +15,8 @@ extern "C" {
 #define pdFAIL			( pdFALSE )
 
 #define		taskMAX_NAMELEN			( 10 )
+#define		taskSTACK_FILL_BYTE		( 0xA5U )
+
 
 //任务优先级范围:0(最低优先级), 1, 2, 3, 4(最高优先级)
 #define		taskMAX_PRIORITIES		( 5 )
@@ -69,6 +71,7 @@ void TaskDelete(    TaskHandle_t TaskToDelete );
 void TaskSuspendAll( void );
 BaseType_t TaskResumeAll( void );
 void TaskStartScheduler( void );
+void TaskSwitchContext( void );
 
 BaseType_t SysTickCount( void );
 
