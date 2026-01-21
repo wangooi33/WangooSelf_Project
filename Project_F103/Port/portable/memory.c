@@ -5,7 +5,7 @@
 typedef struct Free_BLOCK
 {
 	struct Free_BLOCK *pNextFreeBlock;
-	size_t BlockSize;
+	size_t BlockSize;	//要算上结构体大小
 } BlockLink_t;
 /*------------------------------------------------------------------*/
 
@@ -13,9 +13,9 @@ typedef struct Free_BLOCK
 
 /*------------------------------------------------------------------*/
 
-static uint8_t Heap[portHEAP_MAXSIZE];
+static uint8_t Heap[ portHEAP_MAXSIZE ];
 static size_t FreeBytesRemain = 0U;					/* 剩余的字节数 */
-static size_t BlockAllocatedBit = 0;				/* 位掩码 */
+static size_t BlockAllocatedBit = 0;				/* 块分配位掩码 */
 
 /* xStart 的“地址和值”在整个系统运行期间都不变;
    pxEnd  的“指向哪个地址”只在堆初始化时确定,之后也不再变。*/
@@ -34,27 +34,27 @@ void *pHeapMalloc( size_t WantedSize )
 
 	TaskSuspendAll();
 	{
+		//1.初始化
 		if ( pHeapEnd == NULL )
 		{
 			HeapInit();
 		}
 
-		/* 牺牲WantedSize最高位, 用作空闲标志位(0:表示空闲) */
+		//2.牺牲WantedSize最高位, 用作空闲标志位(0:表示空闲)
 		if ( ( WantedSize & BlockAllocatedBit ) == 0 )
 		{
-			//1.计算实际占用堆空间大小
 			if ( WantedSize > 0 )
 			{
-				/* 计算实际占用空间 */
+				//计算实际占用空间
 				WantedSize += HeapStructSize;
 				if ( ( WantedSize & portBYTE_ALIGNED_MASK ) != 0x00 )
 				{
-					//向上补齐到8字节的整数倍
+					//让空间补足到8字节的整数倍
 					WantedSize += portBYTE_ALIGNED - ( WantedSize & portBYTE_ALIGNED_MASK );
 				}
 			}
 
-			//2.分配链表项
+			//3.分配链表项
 			if ( ( WantedSize > 0 ) && ( WantedSize <= FreeBytesRemain ) )
 			{
 				//遍历
@@ -68,7 +68,7 @@ void *pHeapMalloc( size_t WantedSize )
 				if ( pBlock != pHeapEnd )
 				{
 					//返回“空闲块头”后的“数据区地址”,按字节计算需要强转
-					pReturn = ( void * )( ( ( uint8_t * )pPreviousBlock->pNextFreeBlock ) + HeapStructSize);
+					pReturn = ( void * )( ( ( uint8_t * )pPreviousBlock->pNextFreeBlock ) + HeapStructSize );
 					//移出空闲链表
 					pPreviousBlock->pNextFreeBlock = pBlock->pNextFreeBlock;
 					//拆分
@@ -142,27 +142,25 @@ static void HeapInit( void )
 		Address &= ~( ( size_t )( portBYTE_ALIGNED - 1 ) );		//向下对齐(低地址)
 		HeapRealSize -= Address - ( size_t )Heap;
 	}
+	//堆起始地址
+	AlignedHeap = ( uint8_t * )Address;
 
-	/* 堆起始地址 */
-	AlignedHeap = ( uint8_t * ) Address;
 
-	/* Heap Start */
-	HeapStart.pNextFreeBlock = ( void * ) AlignedHeap;
-	HeapStart.BlockSize = ( size_t ) 0;
-	/* Heap End */
+	HeapStart.pNextFreeBlock = ( void * )AlignedHeap;
+	HeapStart.BlockSize = ( size_t )0;
+
 	Address = ( ( size_t )AlignedHeap ) + HeapRealSize;
 	Address -= HeapStructSize;
 	Address &= ~( ( size_t )portBYTE_ALIGNED_MASK );			//portBYTE_ALIGNED_MASK == portBYTE_ALIGNED - 1
-	pHeapEnd = ( void * ) Address;
+	pHeapEnd = ( void * )Address;
 	pHeapEnd->BlockSize = 0;
 	pHeapEnd->pNextFreeBlock = NULL;
 
-	pFirstFreeBlock = ( void * ) AlignedHeap;
+	pFirstFreeBlock = ( void * )AlignedHeap;
 	pFirstFreeBlock->BlockSize = Address - ( size_t )pFirstFreeBlock;
 	pFirstFreeBlock->pNextFreeBlock = pHeapEnd;
 
 	FreeBytesRemain = pFirstFreeBlock->BlockSize;
-
 	BlockAllocatedBit = ( ( size_t )1 ) << ( ( sizeof( size_t ) * 8 ) - 1 );		//位掩码校准(左移4 * 8位)
 }
 
@@ -181,17 +179,17 @@ static void InsertBlockIntoFreeList( BlockLink_t *pBlockToInsert )
 		*/
 	}
 
-	/* 向下(低地址)合并:pBlockToInsert紧挨pBlockPrevious块 */
+	/* 向下(低地址)合并:pBlockToInsert紧挨pIterator块 */
 	pt = ( uint8_t * )pIterator;//让“地址加法”按“字节”为单位进行,而不是按结构体大小,需要强转
 	if ( pt + pIterator->BlockSize == ( uint8_t * )pBlockToInsert )
 	{
-		pIterator->BlockSize+= pBlockToInsert->BlockSize;
+		pIterator->BlockSize += pBlockToInsert->BlockSize;
 		pBlockToInsert = pIterator;
 	}
 
 	/* 向上(高地址)合并 */
-	pt = ( uint8_t * ) pBlockToInsert;
-	if ( pt + pBlockToInsert->BlockSize == ( uint8_t * ) pIterator->pNextFreeBlock )
+	pt = ( uint8_t * )pBlockToInsert;
+	if ( pt + pBlockToInsert->BlockSize == ( uint8_t * )pIterator->pNextFreeBlock )
 	{
 		if ( pIterator->pNextFreeBlock != pHeapEnd )
 		{

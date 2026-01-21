@@ -114,8 +114,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
     if (htim->Instance == TIM1)
     {
-       
-    }	
+    	SystemRunTime_500μs ++;
+		if ( SystemRunTime_500μs % 2 == 0)
+		{
+			SystemRunTime_1ms++;
+		}
+    }
 	if(htim->Instance == TIM6)
 	{
 	

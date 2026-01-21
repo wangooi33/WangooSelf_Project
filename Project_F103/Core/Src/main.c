@@ -30,7 +30,7 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-const char SoftWareID[] = "W004";
+const char SoftWareID[] = "W005";
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -58,7 +58,8 @@ void Error_Handler(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+volatile uint64_t SystemRunTime_1ms = 0;
+volatile uint64_t SystemRunTime_500μs = 0;
 /* USER CODE END 0 */
 
 /**

@@ -32,7 +32,18 @@ extern "C" {
 
 #define		taskERROR_MEMORY_ALLOCTAE		( -1 )
 
+
 /* enum ----------------------------------------------------------------------*/
+
+//任务通知
+typedef enum
+{
+	eNoAction = 0,					/* 通知任务,不修改任务通知值 */
+	eSetBits,						/* 修改任务通知值bit位 */
+	eIncrement,						/* 任务通知值累加 */
+	eSetValueWithOverwrite,			/* 修改任务通知值为特定值 */
+	eSetValueWithoutOverwrite		/* 如果之前已经读取,则进行设置 */
+}eNotifyAction;
 
 /* types ---------------------------------------------------------------------*/
 
@@ -61,6 +72,15 @@ extern volatile TickType_t TickCount;
 extern TCB_t * volatile pCurrentTCB;
 
 /* functions prototypes ------------------------------------------------------*/
+
+/**
+  * @function name: 
+  * @brief        : 
+  * @param        : 
+  * @retval       : 
+  * @version      : 
+  * @note         : 
+*/
 BaseType_t TaskCreate( TaskFunction_t pTaskCode,
 						  const char * const pName,
 						  const uint16_t StackDepth,
@@ -74,6 +94,15 @@ void TaskStartScheduler( void );
 void TaskSwitchContext( void );
 
 BaseType_t SysTickCount( void );
+
+BaseType_t TaskNotifyProduce( TaskHandle_t TaskToNotify, uint32_t Value, eNotifyAction eAction, uint32_t *pPreviousNotificationValue );
+#define TaskNotify( TaskToNotify,Value,eAction ) TaskNotifyProduce( ( TaskToNotify ),( Value ),( eAction ),( NULL ) )
+#define TaskNotifyAndQuery( TaskToNotify,Value,eAction,pPreviousNotifyValue ) TaskNotifyProduce( ( TaskToNotify ),( Value ),( eAction ),( pPreviousNotifyValue ) )
+
+BaseType_t TaskNotifyWait( uint32_t BitsToClearOnEntry, uint32_t BitsToClearOnExit, uint32_t *pNotificationValue, TickType_t TicksToWait );
+uint32_t TaskNotifyTake( BaseType_t ClearCountOnExit, TickType_t TicksToWait );
+BaseType_t TaskNotifyStateClear( TaskHandle_t Task );
+
 
 #ifdef __cplusplus
 }

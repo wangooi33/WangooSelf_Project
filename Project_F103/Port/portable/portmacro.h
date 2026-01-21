@@ -32,8 +32,12 @@ typedef uint32_t StackType_t;
 #define portTICK_RATE_HZ			( 1000 )
 #define portMAX_DEALY				( TickType_t ) 0xFFFFFFFFUL
 
+
+//堆内存
 #define portHEAP_MAXSIZE			( ( size_t ) ( 75 * 1024 ) )
+//8字节对齐
 #define portBYTE_ALIGNED			8
+//字节对齐掩码
 #define portBYTE_ALIGNED_MASK		0x0007
 
 
@@ -60,7 +64,8 @@ typedef uint32_t StackType_t;
 #define portUSE_FIREST_INTERRUPT_NUMBER		( 16 )
 #define portMASK_AIRCR_PRIGROUP				( 0x07 << 8UL )
 #define portAIRCR_PRIGROUP_SHIFT			( 8UL )
-//能安全调用API函数的“最高中断优先级阈值”, > 5 可以调用。
+/* 数值≤ 5的中断,禁止调用RTOS API,
+数值≥ 5的中断允许调用FromISR系列API */
 #define portPRIORITY_MAX_INTERRUPT_SYSTEMCALL	5
 #define portPRIORITY_MAX_SYSTEMCALL_LIMIT 	( portPRIORITY_MAX_INTERRUPT_SYSTEMCALL << (8 - portPIRO_BITS) )
 //SHPR3:SCB->SHPR3基址:0xE000ED20,通过查询Cortex-M内核文档得知:PendSV优先级的地址在0xE000_ED22,则
@@ -116,7 +121,11 @@ void PortPendSV_Handler(void);
 
 /* function -------------------------------------------------------------------------*/
 
-//请求一次 PendSV 上下文切换,仅做请求,并不立刻切换。15->等待全系统范围内的读 + 写完成。
+/* 请求一次PendSV上下文切换.
+会发生切换的时机是:
+	1.普通任务上下文(非临界区)几乎立刻发生任务切换 
+	2.在critical section里,PendSV已经挂起不会执行,直到退出临界区重新打开中断 
+	3.调度器被挂起,等待resume */
 #define portREQUEST_TASK_SWITCH()				\
 {												\
 	portSCB_ICSR = portICSR_PENDSV_BITSET;		\

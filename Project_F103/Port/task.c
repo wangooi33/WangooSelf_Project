@@ -1,12 +1,13 @@
 #include "task.h"
 #include <string.h>
+#include <stdint.h>
 
 /*--------------------------------------------------------------------------------------*/
 
 TCB_t * volatile pCurrentTCB = NULL;										/**/
 volatile UBaseType_t CurrentNumberOfTasks = ( UBaseType_t )0U;				/* 当前任务数量 */
 volatile UBaseType_t DeletedTasksWaitingCleanUp = ( UBaseType_t )0;			/* 需要清除的任务数量 */
-static volatile BaseType_t YieldPending = pdFALSE;							/* 待处理 */
+static volatile BaseType_t YieldPending = pdFALSE;							/* 请求切换任务,但此刻不能切,需等到安全点再进行切换 */
 
 static volatile UBaseType_t SchedulerRunning = pdFALSE;						/* 调度器运行状态 */
 static volatile UBaseType_t SchedulerSuspended	= ( UBaseType_t )pdFALSE;	/* 调度器挂起状态 */
@@ -29,7 +30,6 @@ static List_t WaitingDeleteTaskList;										/* 等待被删除的任务 */
 
 static TaskHandle_t IdleTaskHandle = NULL;
 /*--------------------------------------------------------------------------------------*/
-static void DeleteTCB( TCB_t *pTCB );
 
 static void InitialiseNewTask( TaskFunction_t pTaskCode,
 									 const char * const pName,
@@ -38,17 +38,19 @@ static void InitialiseNewTask( TaskFunction_t pTaskCode,
 									 UBaseType_t Priority,
 									 TaskHandle_t * const pHandle, 
 									 TCB_t *pNewTCB );
-static void AddNewTaskToReadyList( TCB_t *pNewTCB );
 static void InitialiseTaskLists( void );
-static void IdleTask( void * pParameters );
 
+static void AddNewTaskToReadyList( TCB_t *pNewTCB );
+static void AddCurrentTaskToDelayList( TickType_t TicksToWait, const BaseType_t CanBlockIndefinitely );
 
 
 static void ResetNextTaskUnblockTime( void );
 BaseType_t SysTickCount( void );
+static void DeleteTCB( TCB_t *pTCB );
+static void IdleTask( void * pParameters );
 
 /*--------------------------------------------------------------------------------------*/
-#define taskRECORD_READY_PRIORITY( Priority, ReadyPriorities ) ( ReadyPriorities ) |= ( 1UL << ( Priority ) )
+#define taskSET_READY_PRIORITY( Priority, ReadyPriorities ) ( ReadyPriorities ) |= ( 1UL << ( Priority ) )
 #define taskRESET_READY_PRIORITY( Priority, ReadyPriorities ) ( ReadyPriorities ) &= ~( 1UL << ( Priority ) )
 //最高置位 bit 的索引(数值最大优先级) = 31 - 前导零数量
 #define taskGET_HIGHEST_PRIORITY( TopPriority, ReadyPriorities ) TopPriority = ( 31UL - ( uint32_t ) __clz( ( ReadyPriorities ) ) )
@@ -57,7 +59,7 @@ BaseType_t SysTickCount( void );
 #if 1
 	#define  taskREADYLIST_PRIORITY_ITERATE( Priority )			\
 	{															\
-		taskRECORD_READY_PRIORITY( Priority,TopReadyPriority ); \
+		taskSET_READY_PRIORITY( Priority,TopReadyPriority ); 	\
 	}
 
 	#define taskREADYLIST_PRIORITY_RESET( Priority )			\
@@ -172,6 +174,7 @@ BaseType_t TaskCreate( 	TaskFunction_t pTaskCode,
 
 void TaskSuspendAll( void )
 {
+	//任务不能切换
 	++SchedulerSuspended;
 }
 BaseType_t TaskResumeAll( void )
@@ -193,6 +196,9 @@ BaseType_t TaskResumeAll( void )
 					AddNewTaskToReadyList( pTCB );
 					if ( pTCB->Priority > pCurrentTCB->Priority )
 					{
+						/* (特殊情况)虽然满足条件:1.在临界区内;2.高优先级抢占。
+						但是还在while循环里;PendingReadyList还没处理完;ready list 正在被修改,
+						突然触发PendSV,调度器在一个半更新状态下运行 */
 						YieldPending = pdTRUE;
 					}
 					
@@ -307,6 +313,91 @@ void TaskDelete(    TaskHandle_t TaskToDelete )
 		portREQUEST_TASK_SWITCH();
 	}
 }
+void TaskSwitchContext( void )
+{
+	//这个函数本质上就切换pCurrentTCB
+
+	//切换只能在调度器运行时进行
+	if ( SchedulerSuspended != ( UBaseType_t )pdFALSE )
+	{
+		YieldPending = pdTRUE;
+	}
+	else
+	{
+		YieldPending = pdFALSE;
+
+		//1.计算pCurrentTCB->RunTimeCounter,需要借助定时器
+		
+		
+		//2.检查栈溢出
+		portCHEAK_STACK_OVERFLOW();
+
+		//3.任务切换
+		taskSELECT_HIGHEST_PRIORITY_TASK();
+	}
+}
+void TaskSuspend( TaskHandle_t TaskToSuspend )
+{
+	TCB_t *pTCB;
+	PortEnterCritical();
+	{
+		//1.传参判断,为NULL则挂起pCurrentTCB
+		pTCB = ( TaskToSuspend != NULL ) ? TaskToSuspend : pCurrentTCB;
+
+		//2.处理状态链表、事件链表
+		if ( ListRemove( &( pTCB->StateListItem ) ) == ( UBaseType_t )0 )
+		{
+			//优先级迭代
+			taskREADYLIST_PRIORITY_ITERATE( pTCB->Priority );
+		}
+		if ( listGET_LISTITEM_CONTAINER( &( pTCB->EventListItem ) ) != NULL )
+		{
+			ListRemove( &( pTCB->EventListItem ) );
+		}
+		//3.插入挂起链表
+		ListInsert( &SuspendedTaskList, &( pTCB->EventListItem ) );
+		//4.复位任务通知
+		pTCB->NotifyState = taskNOTOFY_NOT_WAIT;
+	}
+	PortExitCritical();
+
+	//5.下一个解锁时间更新
+	if ( SchedulerRunning != pdFALSE )
+	{
+		PortEnterCritical();
+		{
+			ResetNextTaskUnblockTime();
+		}
+		PortExitCritical();
+	}
+	
+	//6.任务切换
+	if ( pCurrentTCB == pTCB )
+	{
+		portREQUEST_TASK_SWITCH();
+	}
+	else
+	{
+		if ( SchedulerRunning != pdFALSE )
+		{
+			portREQUEST_TASK_SWITCH();
+		}
+		else
+		{
+			if ( listGET_CURRENTLIST_LENTH( &SuspendedTaskList ) == CurrentNumberOfTasks )
+			{
+				pCurrentTCB = NULL;
+			}
+			else
+			{
+				//切换pCurrentTCB,原因是pCurrentTCB在任务时刻必须是自治的。
+				TaskSwitchContext();
+			}
+		}
+	}
+}
+/*---------------------------------Tick计数----------------------------------------------*/
+
 BaseType_t SysTickCount( void )
 {
 	TCB_t *pTCB;
@@ -319,6 +410,7 @@ BaseType_t SysTickCount( void )
 	*/
 	if ( SchedulerSuspended == ( UBaseType_t )pdFALSE )
 	{
+		//采用模2ⁿ来计算Tick
 		TickType_t CurrentTick = TickCount + ( TickType_t )1;
 		TickCount = CurrentTick;
 		if ( TickCount == ( TickType_t )0 )
@@ -356,7 +448,6 @@ BaseType_t SysTickCount( void )
 					AddNewTaskToReadyList( pTCB );
 
 					//优先级抢占
-
 					if ( pTCB->Priority > pCurrentTCB->Priority )
 					{
 						SwitchRequired = pdTRUE;
@@ -386,34 +477,221 @@ BaseType_t SysTickCount( void )
 
 	return SwitchRequired;
 }
-void TaskSwitchContext( void )
-{
-	//任务切换只能在调度器运行时进行
-	if ( SchedulerSuspended != ( UBaseType_t )pdFALSE )
-	{
-		YieldPending = pdTRUE;
-	}
-	else
-	{
-		YieldPending = pdFALSE;
 
-		//1.计算pCurrentTCB->RunTimeCounter,需要借助定时器
+/*---------------------------------任务通知----------------------------------------------*/
+
+BaseType_t TaskNotifyProduce( TaskHandle_t TaskToNotify, uint32_t Value, eNotifyAction eAction, uint32_t *pPreviousNotificationValue )
+{
+	//可以抽象成V操作
+
+	BaseType_t xReturn = pdPASS;
+	TCB_t *pTCB;
+	uint32_t OriginalNotifyState;
+	PortEnterCritical();
+	{
+		//1.任务变量修改
+		pTCB = ( TCB_t * )TaskToNotify;
+		//任务通知值的快照(被修改掉之前的原始值)
+		if ( pPreviousNotificationValue != NULL )
+		{
+			*pPreviousNotificationValue = pTCB->NotifiedValue;
+		}
+		OriginalNotifyState = pTCB->NotifiedValue;
+		pTCB->NotifyState = taskNOTOFY_RECEIVED;
+
+		//2.操作通知值
+		switch ( eAction )
+		{
+			case eNoAction:
+				break;
+
+			case eSetBits:
+				pTCB->NotifiedValue = Value;
+				break;
+
+			case eIncrement:
+				pTCB->NotifiedValue += Value;
+				break;
+
+			case eSetValueWithOverwrite:
+				pTCB->NotifiedValue = Value;
+				break;
+
+			case eSetValueWithoutOverwrite:
+				if ( OriginalNotifyState != taskNOTOFY_RECEIVED )
+				{
+					pTCB->NotifiedValue = Value;
+				}
+				else
+				{
+					xReturn = pdFAIL;
+				}
+				break;
+		}
 		
-		//2.检查栈溢出
-		portCHEAK_STACK_OVERFLOW();
+		if ( OriginalNotifyState == taskNOTOFY_WAITING )
+		{
+			//3.从延时链表中删除(等待任务通知设有超时时间),移入就绪链表,等待CPU重新切回任务
+			ListRemove( &( pTCB->StateListItem ) );
+			AddNewTaskToReadyList( pTCB );
 
-		//3.任务切换
-		taskSELECT_HIGHEST_PRIORITY_TASK();
+			/*  */
+			#if ( portENABLE_TICKLESS_IDLE == 1 )
+			{
+				ResetNextTaskUnblockTime();
+			}
+			#endif
+
+			
+			//4.任务切换
+			if ( pTCB->Priority > pCurrentTCB->Priority )
+			{
+				portREQUEST_TASK_SWITCH();
+			}
+		}
+		
 	}
-}
+	PortExitCritical();
 
-/*------------------------- -------------------------------------------------------------*/
-static void DeleteTCB( TCB_t *pTCB )
+	return xReturn;
+}
+BaseType_t TaskNotifyWait( uint32_t BitsToClearOnEntry, uint32_t BitsToClearOnExit, uint32_t *pNotificationValue, TickType_t TicksToWait )
 {
-	vHeapFree( pTCB->pStack );
-	vHeapFree( pTCB );
-}
+	/* 任务三种解除阻塞的时机:
+	(1)通知早就到了(没真正阻塞):
+		1.任务调用TaskNotifyWait()
+		2.进入临界区
+		3.发现:pCurrentTCB->NotifyState == taskNOTOFY_RECEIVED
+	(2)通知在等待过程中到达:
+		1.设置NotifyState = taskNOTOFY_NOT_WAIT 
+		2.任务被挂进延时链表
+		3.ISR / 其他任务调用TaskNotify()
+		4.NotifyState = taskNOTOFY_RECEIVED,并把任务从阻塞态拉回ready list
+		5.任务继续执行,到进入“第二个临界区”函数那里 
+	(3)超时醒来:
+		1.任务进入taskNOTOFY_WAITING
+		2.没有人notify,Tick到期,调度器把任务从延时链表挪回ready list
+		3.状态仍然不是taskNOTOFY_RECEIVED,返回值为xReturn = pdFALSE */
 
+	BaseType_t xReturn;
+	
+	//NotifyState和NotifiedValue可能被中断修改,所以要进入临界区
+	PortEnterCritical();
+	{
+		if ( pCurrentTCB->NotifyState != taskNOTOFY_RECEIVED )
+		{
+			/* 清除指定bit位.
+			若BitsToClearOnEntry = 0xFFFFFFFF,表示要保存原值,
+			若BitsToClearOnEntry = 0,表示要清空原值 */
+			pCurrentTCB->NotifiedValue &= ~BitsToClearOnEntry;
+
+			//状态机实时同步,防止ISR在中间切入
+			pCurrentTCB->NotifyState = taskNOTOFY_WAITING;
+			
+			if ( TicksToWait > ( TickType_t )0 )
+			{
+				//插入延时链表
+				AddCurrentTaskToDelayList( TicksToWait, pdTRUE );
+				//任务切走,等待这个任务回到就绪链表,才继续执行下面的函数语句。
+				portREQUEST_TASK_SWITCH();
+			}
+		}
+	}
+	PortExitCritical();
+
+	PortEnterCritical();
+	{
+		//返回原值
+		if ( pNotificationValue != NULL )
+		{
+			*pNotificationValue = pCurrentTCB->NotifiedValue;
+		}
+
+		if ( pCurrentTCB->NotifyState != taskNOTOFY_RECEIVED )
+		{
+			xReturn = pdFAIL;
+		}
+		else
+		{
+			//BitsToClearOnExit通常写为 UINT32_MAX
+			pCurrentTCB->NotifiedValue &= ~BitsToClearOnExit;
+			xReturn = pdTRUE;
+		}
+
+		pCurrentTCB->NotifyState = taskNOTOFY_WAITING;
+	}
+	PortExitCritical();
+
+	return xReturn;
+}
+uint32_t TaskNotifyTake( BaseType_t ClearCountOnExit, TickType_t TicksToWait )
+{
+	//类似于PV操作中的P,获取一个任务通知(不论是谁产生的)
+
+	uint32_t ulReturn;
+	
+	PortEnterCritical();
+	{
+		if ( pCurrentTCB->NotifiedValue == 0UL )
+		{
+			pCurrentTCB->NotifyState = taskNOTOFY_WAITING;
+			if ( TicksToWait > ( TickType_t )0 )
+			{
+				AddCurrentTaskToDelayList( TicksToWait, pdTRUE );
+				portREQUEST_TASK_SWITCH();
+			}
+		}
+
+	}
+	PortExitCritical();
+
+	PortEnterCritical();
+	{
+		ulReturn = pCurrentTCB->NotifiedValue;
+		if ( ulReturn != 0UL )
+		{
+			//ClearCountOnExit仅有两种选择:pdTrue		or		pdFALSE
+			if ( ClearCountOnExit != pdFALSE )
+			{
+				//清零通知值
+				pCurrentTCB->NotifiedValue = 0UL;
+			}
+			else
+			{
+				pCurrentTCB->NotifiedValue = ulReturn - ( uint32_t )1;
+			}
+		}
+		pCurrentTCB->NotifyState = taskNOTOFY_NOT_WAIT;
+	}
+	PortExitCritical();
+
+	return ulReturn;
+}
+BaseType_t TaskNotifyStateClear( TaskHandle_t Task )
+{
+	//收到了通知,但是不做处理,仅仅只复位状态
+	UBaseType_t xReturn;
+	TCB_t *pTCB;
+
+	pTCB = ( Task == NULL ) ? ( TCB_t * )pCurrentTCB : ( TCB_t * )Task;
+	PortEnterCritical();
+
+	{
+		if ( pTCB->NotifyState == taskNOTOFY_RECEIVED )
+		{
+			pTCB->NotifyState == taskNOTOFY_NOT_WAIT;
+			xReturn = pdTRUE;
+		}
+		else
+		{
+			xReturn = pdFALSE;
+		}
+	}
+	PortExitCritical();
+
+	return xReturn;
+}
+/*-----------------------------------静态函数---------------------------------------------------*/
 
 static void InitialiseNewTask( TaskFunction_t pTaskCode,
 									 const char * const pName,
@@ -470,7 +748,8 @@ static void InitialiseNewTask( TaskFunction_t pTaskCode,
 	pNewTCB->NotifiedValue = 0;
 	pNewTCB->NotifyState = taskNOTOFY_NOT_WAIT;
 
-	//6.
+	/* 6.伪造一次异常返回(为了任务能被抢占、挂起、恢复),
+	也就是说按照Cortex-M认识的格式布局(xPSR PC r0 LR r4-r11 )*/
 	pNewTCB->pTopOfStack = pPortInitialiseStack( pTopOfStack, pTaskCode, pParameters );
 
 	//7.生成句柄(指向TCB首地址)
@@ -479,6 +758,25 @@ static void InitialiseNewTask( TaskFunction_t pTaskCode,
 		*pHandle = ( TaskHandle_t )pNewTCB;
 	}
 }
+static void InitialiseTaskLists( void )
+{
+	UBaseType_t Priority;
+	for ( Priority = ( UBaseType_t )0; Priority < ( UBaseType_t )taskMAX_PRIORITIES; Priority++ )
+	{
+		//不同优先级拥有各自的链表
+		ListInitialise( &( pReadyTasksLists[Priority] ) );
+	}
+	ListInitialise( &DelayedTaskList1 );
+	ListInitialise( &DelayedTaskList2 );
+	ListInitialise( &PendingReadyList );
+	ListInitialise( &WaitingDeleteTaskList );
+	ListInitialise( &SuspendedTaskList );
+
+	pDelayedTaskList = &DelayedTaskList1;
+	pOverflowDelayedTaskList = &DelayedTaskList2;
+}
+
+
 static void AddNewTaskToReadyList( TCB_t *pNewTCB )
 {
 	PortEnterCritical();
@@ -520,23 +818,37 @@ static void AddNewTaskToReadyList( TCB_t *pNewTCB )
 	}
 	
 }
-static void InitialiseTaskLists( void )
+static void AddCurrentTaskToDelayList( TickType_t TicksToWait, const BaseType_t CanBlockIndefinitely )
 {
-	UBaseType_t Priority;
-	for ( Priority = ( UBaseType_t )0; Priority < ( UBaseType_t )taskMAX_PRIORITIES; Priority++ )
+	TickType_t TimeToWake;
+	const TickType_t ConstTickCount = TickCount;
+	//1.链表切换,优先级迭代
+	if ( ListRemove( &( pCurrentTCB->StateListItem ) ) == ( UBaseType_t )0  )
 	{
-		//不同优先级拥有各自的链表
-		ListInitialise( &( pReadyTasksLists[Priority] ) );
+		taskREADYLIST_PRIORITY_ITERATE( pCurrentTCB->Priority );
 	}
-	ListInitialise( &DelayedTaskList1 );
-	ListInitialise( &DelayedTaskList2 );
-	ListInitialise( &PendingReadyList );
-	ListInitialise( &WaitingDeleteTaskList );
-	ListInitialise( &SuspendedTaskList );
-
-	pDelayedTaskList = &DelayedTaskList1;
-	pOverflowDelayedTaskList = &DelayedTaskList2;
+	
+	//2.根据延时时间决定插入位置
+	if ( TicksToWait == portMAX_DEALY && CanBlockIndefinitely == pdTRUE )
+	{
+		ListInsertCurPrevious( &SuspendedTaskList, &( pCurrentTCB->StateListItem ) );
+	}
+	else
+	{
+		TimeToWake = TickCount + TicksToWait;
+		//溢出判断
+		if ( TimeToWake < TickCount )
+		{
+			ListInsert( pOverflowDelayedTaskList, &( pCurrentTCB->StateListItem ));
+		}
+		else
+		{
+			ListInsert( pDelayedTaskList, &( pCurrentTCB->StateListItem ) );
+			ResetNextTaskUnblockTime();
+		}
+	}
 }
+
 static void IdleTask( void * pParameters )
 {
 	for ( ;; )
@@ -571,7 +883,6 @@ static void IdleTask( void * pParameters )
 	}
 }
 
-
 static void ResetNextTaskUnblockTime( void )
 {
 	/* 如果在 TaskSuspendAll()期间,有任务被解阻过,那么原先算好的“下一次最早唤醒时间”已经不可信,
@@ -587,5 +898,11 @@ static void ResetNextTaskUnblockTime( void )
 		pTCB = ( TCB_t * )listGET_ENDNEXT_LISTITEM_OWNER( pDelayedTaskList );
 		NextTaskUnblockTime = listGET_LISTITEM_VALUE( &( pTCB->StateListItem ) );
 	}
+}
+
+static void DeleteTCB( TCB_t *pTCB )
+{
+	vHeapFree( pTCB->pStack );
+	vHeapFree( pTCB );
 }
 

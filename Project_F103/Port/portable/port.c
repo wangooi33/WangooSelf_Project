@@ -45,8 +45,8 @@ void PortSetBASEPRI( uint32_t ulBASEPRI )
 }
 
 void PortEnterCritical( void )
-
 {
+	//关中断;任务不能切换
 	PortRaiseBASEPRI();
 	CritialNestCount++;//CritialNestCount == 0时,认为离开临界区,并恢复中断状态
 	if( CritialNestCount == 1 )
@@ -54,7 +54,6 @@ void PortEnterCritical( void )
 		//portASSERT( ( portSCB_ICSR & portMASK_ICSR_VECTACTIVE ) == 0 );
 	}
 }
-
 void PortExitCritical( void )
 {
 	//portASSERT( CritialNestCount );
