@@ -108,21 +108,16 @@ static void IdleTask( void * pParameters );
 }
 
 #ifdef portENABLE_TICK_OVERFLOW_CHECK
-	#define taskSWITCH_DELAYED_LISTS()									\
-		do {															\
-			const TickType_t NextTick = TickCount + ( TickType_t ) 1;	\
-																		\
-			/* 溢出只能发生在“加 1 的那一刻”,不加 1 无法判断 */			                \
-			if( NextTick == ( TickType_t ) 0U )							\
-			{															\
-				List_t *pTemp;											\
-				pTemp = pDelayedTaskList;								\
-				pDelayedTaskList = pOverflowDelayedTaskList;			\
-				pOverflowDelayedTaskList = pTemp;						\
-																		\
-				NumOfOverflows++;										\
-				ResetNextTaskUnblockTime();								\
-			}															\
+	#define taskSWITCH_DELAYED_LISTS()								\
+		do {														\
+			/* 溢出只能发生在“加 1 的那一刻”,不加 1 无法判断 */				        \
+			List_t *pTemp;											\
+			pTemp = pDelayedTaskList;								\
+			pDelayedTaskList = pOverflowDelayedTaskList;			\
+			pOverflowDelayedTaskList = pTemp;						\
+																	\
+			NumOfOverflows++;										\
+			ResetNextTaskUnblockTime();								\
 		} while( 0 )
 #endif
 
@@ -139,8 +134,8 @@ BaseType_t TaskCreate( 	TaskFunction_t pTaskCode,
 	TCB_t *pxNewTCB;
 	StackType_t *pStack;
 
-	//1.(地址向下生长)先分配任务栈,再分配TCB
-	pStack = ( StackType_t * )pHeapMalloc(( ( size_t )StackDepth ) * sizeof( StackType_t ) );
+	//1.(栈地址向下生长)先分配任务栈,再分配TCB
+	pStack = ( StackType_t * )pHeapMalloc( ( ( size_t )StackDepth ) * sizeof( StackType_t ) );
 	if( pStack != NULL )
 	{
 		pxNewTCB = ( TCB_t * )pHeapMalloc( sizeof( TCB_t ) );
@@ -180,7 +175,7 @@ void TaskSuspendAll( void )
 BaseType_t TaskResumeAll( void )
 {
 	TCB_t *pTCB = NULL;
-	UBaseType_t AlreadyRequest;
+	UBaseType_t AlreadyRequest = pdFALSE;
 	PortEnterCritical();
 	{
 		--SchedulerRunning;
@@ -223,7 +218,7 @@ BaseType_t TaskResumeAll( void )
 				}
 					
 				
-				//挂起期间欠的所有切换，合并成一次 PendSV
+				//挂起期间欠的所有切换,并成一次PendSV
 				if ( YieldPending != pdFALSE )
 				{
 					AlreadyRequest = pdTRUE;
@@ -374,10 +369,6 @@ void TaskSuspend( TaskHandle_t TaskToSuspend )
 	//6.任务切换
 	if ( pCurrentTCB == pTCB )
 	{
-		portREQUEST_TASK_SWITCH();
-	}
-	else
-	{
 		if ( SchedulerRunning != pdFALSE )
 		{
 			portREQUEST_TASK_SWITCH();
@@ -396,22 +387,85 @@ void TaskSuspend( TaskHandle_t TaskToSuspend )
 		}
 	}
 }
+void TaskDelay( const TickType_t TicksToDelay )
+{
+	//阻塞,主动让出CPU
+
+	BaseType_t AlreadyReturn;
+	if ( TicksToDelay > ( TickType_t )0 )
+	{
+		TaskSuspendAll();
+		{
+			AddCurrentTaskToDelayList( TicksToDelay, pdFALSE);
+		}
+		AlreadyReturn = TaskResumeAll();
+	}
+	
+	//如果没做任务切换,则在此切换一次
+	if ( AlreadyReturn == pdFALSE )
+	{
+		portREQUEST_TASK_SWITCH();
+	}
+}
+void TaskDelayUntil( TickType_t * const pPreviousWakeTime, const TickType_t TimeIncrement )
+{
+	//时间轴唤醒,需要周期调度
+
+	BaseType_t AlreadyReturn,ShouldDelay = pdFALSE;;
+	const TickType_t CurrentTick = TickCount;
+	TickType_t TimeToWake = *pPreviousWakeTime + TimeIncrement;
+		
+	TaskSuspendAll();
+	{
+		//逻辑顺序: pPreviousWake		TimeCurrentTick		TimeToWake
+ 		if ( CurrentTick < *pPreviousWakeTime )
+ 		{
+ 			if( ( TimeToWake < *pPreviousWakeTime ) && ( TimeToWake > CurrentTick ) )
+ 			{
+ 				ShouldDelay = pdTRUE;
+ 			}
+ 		}
+		else
+		{
+			if ( ( TimeToWake < *pPreviousWakeTime ) || ( TimeToWake > CurrentTick ) )
+			{
+				ShouldDelay = pdTRUE;
+			}
+		}
+		
+		*pPreviousWakeTime = TimeToWake;
+		if ( ShouldDelay != pdFALSE )
+		{
+			AddCurrentTaskToDelayList( TimeToWake - CurrentTick, pdFALSE );
+		}
+	}
+	AlreadyReturn = TaskResumeAll();
+
+	if ( AlreadyReturn == pdFALSE )
+	{
+		portREQUEST_TASK_SWITCH();
+	}
+}
 /*---------------------------------Tick计数----------------------------------------------*/
 
 BaseType_t SysTickCount( void )
 {
 	TCB_t *pTCB;
 	UBaseType_t TickValue;
-	BaseType_t SwitchRequired;
+	BaseType_t SwitchRequired = pdFALSE;
 
-	/*tick++:
-		1.进行整个延时链表到就绪链表转换,直到当前tick < 延时时间.
-		2.时间片轮询
+	/* @brief:
+		tick++:
+		 1.进行整个延时链表到就绪链表转换,直到当前tick < 延时时间.
+		 2.时间片轮询
+
+		如果调度器没挂起,++TickCount,任务可以切换
+		否则++PendedTicks,任务不做切换
 	*/
 	if ( SchedulerSuspended == ( UBaseType_t )pdFALSE )
 	{
 		//采用模2ⁿ来计算Tick
-		TickType_t CurrentTick = TickCount + ( TickType_t )1;
+		const TickType_t CurrentTick = TickCount + ( TickType_t )1;
 		TickCount = CurrentTick;
 		if ( TickCount == ( TickType_t )0 )
 		{
@@ -419,7 +473,7 @@ BaseType_t SysTickCount( void )
 			taskSWITCH_DELAYED_LISTS();
 		}
 		
-		if ( CurrentTick > NextTaskUnblockTime )
+		if ( CurrentTick >= NextTaskUnblockTime )
 		{
 			for ( ;; )
 			{
@@ -457,7 +511,7 @@ BaseType_t SysTickCount( void )
 			
 		}
 		
-		//同优先级时间片轮询
+		//同优先级时间片轮询,一个任务占用1个Tick,当前任务用完后,切换任务
 		if ( listGET_CURRENTLIST_LENTH( &( pReadyTasksLists[ pCurrentTCB->Priority ] ) ) > ( UBaseType_t )1 )
 		{
 			SwitchRequired = pdTRUE;
@@ -591,7 +645,7 @@ BaseType_t TaskNotifyWait( uint32_t BitsToClearOnEntry, uint32_t BitsToClearOnEx
 			if ( TicksToWait > ( TickType_t )0 )
 			{
 				//插入延时链表
-				AddCurrentTaskToDelayList( TicksToWait, pdTRUE );
+				AddCurrentTaskToDelayList( TicksToWait, pdFALSE );
 				//任务切走,等待这个任务回到就绪链表,才继续执行下面的函数语句。
 				portREQUEST_TASK_SWITCH();
 			}
@@ -637,7 +691,7 @@ uint32_t TaskNotifyTake( BaseType_t ClearCountOnExit, TickType_t TicksToWait )
 			pCurrentTCB->NotifyState = taskNOTOFY_WAITING;
 			if ( TicksToWait > ( TickType_t )0 )
 			{
-				AddCurrentTaskToDelayList( TicksToWait, pdTRUE );
+				AddCurrentTaskToDelayList( TicksToWait, pdFALSE );
 				portREQUEST_TASK_SWITCH();
 			}
 		}

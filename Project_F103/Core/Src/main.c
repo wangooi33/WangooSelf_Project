@@ -30,7 +30,7 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-const char SoftWareID[] = "W005";
+const char SoftWareID[] = "W006";
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/

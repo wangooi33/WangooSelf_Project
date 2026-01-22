@@ -34,7 +34,7 @@ typedef uint32_t StackType_t;
 
 
 //堆内存
-#define portHEAP_MAXSIZE			( ( size_t ) ( 75 * 1024 ) )
+#define portHEAP_MAXSIZE			( ( size_t )( 75 * 1024 ) )
 //8字节对齐
 #define portBYTE_ALIGNED			8
 //字节对齐掩码
@@ -51,25 +51,25 @@ typedef uint32_t StackType_t;
 
 
 //Systick
-#define portSYSTICK_CTRL					( * ( ( volatile uint32_t * ) 0xE000E010 ) )
+#define portSYSTICK_CTRL					( * ( ( volatile uint32_t * )0xE000E010 ) )
 #define portCTRL_ENABLE						( 1UL << 0UL )
 #define portCTRL_TICKINT					( 1UL << 1UL )
 #define portCTRL_CLKSOURCET					( 1UL << 2UL )
-#define portSYSTICK_VAL						( * ( ( volatile uint32_t * ) 0xE000E018 ) )
-#define portSYSTICK_LOAD					( * ( ( volatile uint32_t * ) 0xE000E014 ) )
+#define portSYSTICK_VAL						( * ( ( volatile uint32_t * )0xE000E018 ) )
+#define portSYSTICK_LOAD					( * ( ( volatile uint32_t * )0xE000E014 ) )
 
 
 //中断优先级(值越小,优先级越高)
 #define portNVIC_IPR						( 0xE000E3F0 )
 #define portUSE_FIREST_INTERRUPT_NUMBER		( 16 )
-#define portMASK_AIRCR_PRIGROUP				( 0x07 << 8UL )
+#define portMASK_AIRCR_PRIGROUP				( 0x07UL << 8UL )
 #define portAIRCR_PRIGROUP_SHIFT			( 8UL )
 /* 数值≤ 5的中断,禁止调用RTOS API,
 数值≥ 5的中断允许调用FromISR系列API */
 #define portPRIORITY_MAX_INTERRUPT_SYSTEMCALL	5
 #define portPRIORITY_MAX_SYSTEMCALL_LIMIT 	( portPRIORITY_MAX_INTERRUPT_SYSTEMCALL << (8 - portPIRO_BITS) )
 //SHPR3:SCB->SHPR3基址:0xE000ED20,通过查询Cortex-M内核文档得知:PendSV优先级的地址在0xE000_ED22,则
-#define portSCB_SYSPRI3_REG					( * ( ( volatile uint32_t * ) 0xE000ED20 ) )
+#define portSCB_SHPR3						( * ( ( volatile uint32_t * )0xE000ED20 ) )
 //中断最低优先级(4位优先级系统):15,保证PendSV和Systick的优先级最低(值越大,优先级越低)
 #define portPRIORITY_LOWEST_INTERRUPT  		0xF
 #define portPRIORITY_PENDSV_SYSTICK			( portPRIORITY_LOWEST_INTERRUPT << ( 8 - portPIRO_BITS ) )
@@ -78,13 +78,13 @@ typedef uint32_t StackType_t;
 
 
 //任务切换
-#define portSCB_ICSR						( * ( ( volatile uint32_t * ) 0xE000ED04 ) )
+#define portSCB_ICSR						( * ( ( volatile uint32_t * )0xE000ED04 ) )
 #define portICSR_PENDSV_BITSET				( 1UL << 28UL )
 #define portMASK_ICSR_VECTACTIVE			( 0xFFUL )
 
 
 //FPU
-#define portFPU_FPCCR						( * ( ( volatile uint32_t * ) 0xE000EF34 ) )
+#define portFPU_FPCCR						( * ( ( volatile uint32_t * )0xE000EF34 ) )
 #define portFPCCR_ASPEN_AND_LSPEN_BITS		( 0x3UL << 30UL )
 
 

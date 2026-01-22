@@ -27,7 +27,7 @@ void ListInsert( List_t * const pList, ListItem_t * const pNewListItem )
 	}
 	else
 	{
-		for( pIterator = ( ListItem_t * ) &( pList->ListEnd ); pIterator->pNext->ItemValue <= ValueOfInsertion; pIterator = pIterator->pNext )
+		for ( pIterator = ( ListItem_t * )&( pList->ListEnd ); pIterator->pNext->ItemValue <= ValueOfInsertion; pIterator = pIterator->pNext )
 		{
 			/* There is nothing to do here. */
 		}
@@ -38,29 +38,27 @@ void ListInsert( List_t * const pList, ListItem_t * const pNewListItem )
 	pNewListItem->pPrevious = pIterator;
 	pIterator->pNext = pNewListItem;
 
-
-	pNewListItem->pContainer = ( void * ) pList;
+	pNewListItem->pContainer = ( void * )pList;
 
 	( pList->NumberOfItems )++;
 }
 void ListInsertCurPrevious( List_t * const pList, ListItem_t * const pNewListItem )
 {
-	/* 插入到pIndex的前面,不在pIndex后面插入,好处是:不破坏当前轮转顺序 */
+	/* 插入到pIndex的前面,不在pIndex后面插入,好处是:不破坏当前轮询顺序 */
 	ListItem_t * const pIndex = pList->pIndex;
 
 	pNewListItem->pNext = pIndex;
 	pNewListItem->pPrevious = pIndex->pPrevious;
-
 	pIndex->pPrevious->pNext = pNewListItem;
 	pIndex->pPrevious = pNewListItem;
 
-	pNewListItem->pContainer = ( void * ) pList;
+	pNewListItem->pContainer = ( void * )pList;
 
 	( pList->NumberOfItems )++;
 }
 UBaseType_t ListRemove( ListItem_t * const pListItemToRemove )
 {
-	List_t * const pList = ( List_t * ) pListItemToRemove->pContainer;
+	List_t * const pList = ( List_t * )pListItemToRemove->pContainer;
 
 	pListItemToRemove->pNext->pPrevious = pListItemToRemove->pPrevious;
 	pListItemToRemove->pPrevious->pNext = pListItemToRemove->pNext;
@@ -70,8 +68,8 @@ UBaseType_t ListRemove( ListItem_t * const pListItemToRemove )
 		pList->pIndex = pListItemToRemove->pPrevious;
 	}
 
-	pList->NumberOfItems--;
 	pListItemToRemove->pContainer = NULL;
+	( pList->NumberOfItems )--;
 
 	return pList->NumberOfItems;
 }

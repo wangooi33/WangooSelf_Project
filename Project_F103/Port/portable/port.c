@@ -4,8 +4,9 @@
 /*--------------------------------------------------------------------------------------*/
 
 //临界区嵌套计数,=0视为退出临界区,未开启调度器时默认为0xa5,开启调度器后,会把它置为0
-static uint8_t CritialNestCount = 0xa5;		
-static uint32_t IPR_PriorityBitCnt;
+static uint8_t CritialNestCount = 0xa5;
+static uint32_t IPR_PriorityBitCnt = 0;
+static uint8_t MaxSysCallPriority = 0;
 extern TCB_t * volatile pCurrentTCB;
 
 /*--------------------------------------------------------------------------------------*/
@@ -106,7 +107,7 @@ UBaseType_t PortStartScheduler( void )
 		//0(__initial_sp) ~ 15(SysTick_Handler)
 		volatile uint8_t * const FirstUserRegisterPriority = ( uint8_t * )( portNVIC_IPR + portUSE_FIREST_INTERRUPT_NUMBER );
 		volatile uint8_t PriorityBitMask;
-		uint8_t OriginPrioity;
+		uint32_t OriginPrioity;
 
 		/* 1.计算优先级有效位个数 */
 		//计算NVIC->IPR[x]中的有效位(写回读)
@@ -114,6 +115,8 @@ UBaseType_t PortStartScheduler( void )
 		*FirstUserRegisterPriority = ( uint8_t )0xFF;
 		PriorityBitMask = *FirstUserRegisterPriority;
 		//portASSERT( PriorityBitMask == ( PriorityBitMask & portPRIORITY_PENDSV_SYSTICK ) );
+		MaxSysCallPriority = PriorityBitMask & portPRIORITY_MAX_INTERRUPT_SYSTEMCALL;
+		
 		//手动计算优先级有效位
 		IPR_PriorityBitCnt = 7;
 		while ( 0x80 == ( PriorityBitMask & 0x80 ) )
@@ -124,6 +127,7 @@ UBaseType_t PortStartScheduler( void )
 		//两次的计算结果进行对比
 		//portASSERT( ( 7 - IPR_PriorityBitCnt ) == __NVIC_PRIO_BITS );
 		//portASSERT( ( 7 - IPR_PriorityBitCnt ) == portPIRO_BITS );
+		
 		//对齐 + 掩码
 		IPR_PriorityBitCnt <<= portAIRCR_PRIGROUP_SHIFT;
 		IPR_PriorityBitCnt &= portMASK_AIRCR_PRIGROUP;
@@ -133,8 +137,8 @@ UBaseType_t PortStartScheduler( void )
 	#endif
 
 	//2.调整PendSV、Systick优先级
-	portSCB_SYSPRI3_REG |= porSHPR3_PENDSV_PRIORITY;
-	portSCB_SYSPRI3_REG |= porSHPR3_SYSTICK_PRIORITY;
+	portSCB_SHPR3 |= porSHPR3_PENDSV_PRIORITY;
+	portSCB_SHPR3 |= porSHPR3_SYSTICK_PRIORITY;
 
 	//3.系统时钟使能
 	PortSetupTimerInterrupt();
@@ -161,7 +165,7 @@ void PortSysTick_Handler( void )
 {
 	PortRaiseBASEPRI();
 	{
-		if ( SysTickCount() != pdFAIL )
+		if ( SysTickCount() != pdFALSE )
 		{
 			//请求一次PendSV中断
 			portSCB_ICSR = portICSR_PENDSV_BITSET;
@@ -265,9 +269,13 @@ __asm void PortSVC_Handler( void )
 }
 
 /**
+ * @brief:上下文保存,上下文切换
  * @note:
  *    (1)ldr r3, =pxCurrentTCB	:&pCurrentTCB
  *    (2)ldr r2, [r3]			:*(&pCurrentTCB) = pCurrentTCB
+ *
+ *    (3)ldr r1, [r3]			:pCurrentTCB
+ *    (4)ldr r0, [r1]			:pCurrentTCB->pTopOfStack
  */
 __asm void PortPendSV_Handler(void)
 {

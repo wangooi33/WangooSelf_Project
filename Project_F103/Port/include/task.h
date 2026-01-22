@@ -49,12 +49,12 @@ typedef enum
 
 typedef struct TaskControlBlock
 {
-	volatile StackType_t	*pTopOfStack;		/* 当前任务的栈顶,必须排在结构体第一个,为了适配汇编 */
+	volatile StackType_t	*pTopOfStack;		/* 当前任务“运行时栈帧”的栈顶指针(PSP),必须排在结构体第一个,为了适配汇编 */
 
 	ListItem_t		StateListItem;
 	ListItem_t		EventListItem;
 	UBaseType_t		Priority;
-	StackType_t		*pStack;					/* 指向这个任务栈空间的起始地址 */
+	StackType_t		*pStack;					/* 指向这个任务栈空间的起始地址(栈底) */
 	char			pTaskName[ taskMAX_NAMELEN ];
 	
 	uint32_t		RunTimeCounter;
@@ -92,8 +92,8 @@ void TaskSuspendAll( void );
 BaseType_t TaskResumeAll( void );
 void TaskStartScheduler( void );
 void TaskSwitchContext( void );
-
-BaseType_t SysTickCount( void );
+void TaskDelay( const TickType_t TicksToDelay );
+void TaskDelayUntil( TickType_t * const pPreviousWakeTime, const TickType_t TimeIncrement );
 
 BaseType_t TaskNotifyProduce( TaskHandle_t TaskToNotify, uint32_t Value, eNotifyAction eAction, uint32_t *pPreviousNotificationValue );
 #define TaskNotify( TaskToNotify,Value,eAction ) TaskNotifyProduce( ( TaskToNotify ),( Value ),( eAction ),( NULL ) )
@@ -102,6 +102,10 @@ BaseType_t TaskNotifyProduce( TaskHandle_t TaskToNotify, uint32_t Value, eNotify
 BaseType_t TaskNotifyWait( uint32_t BitsToClearOnEntry, uint32_t BitsToClearOnExit, uint32_t *pNotificationValue, TickType_t TicksToWait );
 uint32_t TaskNotifyTake( BaseType_t ClearCountOnExit, TickType_t TicksToWait );
 BaseType_t TaskNotifyStateClear( TaskHandle_t Task );
+
+
+BaseType_t SysTickCount( void );
+
 
 
 #ifdef __cplusplus

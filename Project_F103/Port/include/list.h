@@ -48,8 +48,8 @@ typedef struct LIST
 
 #define  listIS_EMPTY( pList )                      ( ( BaseType_t )( ( pList )->NumberOfItems == 0 ) )
 
-#define  listSET_LISTITEM_VALUE( pListItem,value )  ( ( pListItem )->ItemValue = value )
-#define  listSET_LISTITEM_OWNER( pListItem,owner )  ( ( pListItem )->pOwner = ( void * )owner )
+#define  listSET_LISTITEM_VALUE( pListItem, value )  ( ( pListItem )->ItemValue = value )
+#define  listSET_LISTITEM_OWNER( pListItem, owner )  ( ( pListItem )->pOwner = ( void * )owner )
 
 #define  listGET_LISTITEM_VALUE( pListItem )        ( ( pListItem )->ItemValue )
 #define  listGET_LISTITEM_OWNER( pListItem )        ( ( pListItem )->pOwner )
@@ -61,7 +61,7 @@ typedef struct LIST
 {																							\
 	List_t * const pConstList = ( pList );													\
 	( pConstList )->pIndex = ( pConstList )->pIndex->pNext;									\
-	if ( ( void * ) ( pConstList )->pIndex == ( void * ) &( ( pConstList )->ListEnd ) )		\
+	if ( ( void * )( pConstList )->pIndex == ( void * )&( ( pConstList )->ListEnd ) )		\
 	{																						\
 		( pConstList )->pIndex = ( pConstList )->pIndex->pNext;								\
 	}																						\
