@@ -9,7 +9,7 @@ typedef struct Free_BLOCK
 } BlockLink_t;
 /*------------------------------------------------------------------*/
 
-#define heapMINIMUM_BLOCK_SIZE	( ( size_t ) ( HeapStructSize << 1 ) )
+#define heapMINIMUM_BLOCK_SIZE	( ( size_t )( HeapStructSize << 1 ) )
 
 /*------------------------------------------------------------------*/
 
@@ -17,14 +17,16 @@ static uint8_t Heap[ portHEAP_MAXSIZE ];
 static size_t FreeBytesRemain = 0U;					/* 剩余的字节数 */
 static size_t BlockAllocatedBit = 0;				/* 块分配位掩码 */
 
-/* xStart 的“地址和值”在整个系统运行期间都不变;
-   pxEnd  的“指向哪个地址”只在堆初始化时确定,之后也不再变。*/
+/* Start 的“地址和值”在整个系统运行期间都不变;
+ pEnd 的“指向哪个地址”只在堆初始化时确定,之后也不再变。*/
 static BlockLink_t HeapStart,*pHeapEnd = NULL;
 static const size_t HeapStructSize = ( sizeof( BlockLink_t ) + ( ( size_t )( portBYTE_ALIGNED - 1 ) ) ) & ~( ( size_t )( portBYTE_ALIGNED - 1 ) );
 
 /*------------------------------------------------------------------*/
-static void HeapInit(void);
-static void InsertBlockIntoFreeList( BlockLink_t *pBlockToInsert );
+
+static void prvHeapInit(void);
+static void prvInsertBlockIntoFreeList( BlockLink_t *pBlockToInsert );
+
 /*------------------------------------------------------------------*/
 
 void *pHeapMalloc( size_t WantedSize )
@@ -37,7 +39,7 @@ void *pHeapMalloc( size_t WantedSize )
 		//1.初始化
 		if ( pHeapEnd == NULL )
 		{
-			HeapInit();
+			prvHeapInit();
 		}
 
 		//2.牺牲WantedSize最高位, 用作空闲标志位(0:表示空闲)
@@ -90,43 +92,7 @@ void *pHeapMalloc( size_t WantedSize )
 	
 	return pReturn;
 }
-void vHeapFree( void * pDel )
-{
-	/*	指针类型转换:
-		| BlockLink_t | 用户数据 |
-		^			  ^
-		|			  |
-		pLink		  pDel
-	*/
-	BlockLink_t *pLink;
-	uint8_t *pData = ( uint8_t * )pDel;
-
-	pData -= HeapStructSize;	//按字节回退,需强转类型
-	pLink = ( void * )pData;	//(uint8_t*) → (void*)防报错 → (BlockLink_t*)
-	
-	if ( ( pLink->BlockSize & BlockAllocatedBit ) != 0 )
-	{
-		if ( pLink->pNextFreeBlock != NULL )
-		{
-			pLink->BlockSize &= ~BlockAllocatedBit;
-			
-			TaskSuspendAll();
-			{
-				FreeBytesRemain += pLink->BlockSize;
-				InsertBlockIntoFreeList( ( BlockLink_t * )pLink );
-			}
-			TaskResumeAll();
-		}
-	}		
-}
-void StackOverflowHook(TaskHandle_t Task,char *pTaskName)
-{
-	
-}
-
-/*------------------------------------------------------------------*/
-
-static void HeapInit( void )
+static void prvHeapInit( void )
 {
 	BlockLink_t *pFirstFreeBlock;
 	uint8_t *AlignedHeap;
@@ -164,7 +130,36 @@ static void HeapInit( void )
 	BlockAllocatedBit = ( ( size_t )1 ) << ( ( sizeof( size_t ) * 8 ) - 1 );		//位掩码校准(左移4 * 8位)
 }
 
-static void InsertBlockIntoFreeList( BlockLink_t *pBlockToInsert )
+void vHeapFree( void * pDel )
+{
+	/*	指针类型转换:
+		| BlockLink_t | 用户数据 |
+		^			  ^
+		|			  |
+		pLink		  pDel
+	*/
+	BlockLink_t *pLink;
+	uint8_t *pData = ( uint8_t * )pDel;
+
+	pData -= HeapStructSize;	//按字节回退,需强转类型
+	pLink = ( void * )pData;	//(uint8_t*) → (void*)防报错 → (BlockLink_t*)
+	
+	if ( ( pLink->BlockSize & BlockAllocatedBit ) != 0 )
+	{
+		if ( pLink->pNextFreeBlock != NULL )
+		{
+			pLink->BlockSize &= ~BlockAllocatedBit;
+			
+			TaskSuspendAll();
+			{
+				FreeBytesRemain += pLink->BlockSize;
+				prvInsertBlockIntoFreeList( ( BlockLink_t * )pLink );
+			}
+			TaskResumeAll();
+		}
+	}		
+}
+static void prvInsertBlockIntoFreeList( BlockLink_t *pBlockToInsert )
 {
 	BlockLink_t *pIterator;
 	uint8_t *pt;

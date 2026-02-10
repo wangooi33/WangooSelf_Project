@@ -30,11 +30,23 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-const char SoftWareID[] = "W006";
+const char SoftWareID[] = "W007";
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define TASK_PERIOD_500US     1
+#define TASK_PERIOD_1MS       1
+#define TASK_PERIOD_2MS       2
+#define TASK_PERIOD_5MS       5
+#define TASK_PERIOD_10MS      10
+
+#define TASK_PERIOD_20MS      20
+#define TASK_PERIOD_50MS      50
+#define TASK_PERIOD_100MS     100
+#define TASK_PERIOD_500MS     500
+#define TASK_PERIOD_1000MS    1000
+
 
 /* USER CODE END PD */
 
@@ -58,8 +70,145 @@ void Error_Handler(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-volatile uint64_t SystemRunTime_1ms = 0;
-volatile uint64_t SystemRunTime_500μs = 0;
+volatile uint32_t SystemRunTime_1ms = 0;
+volatile uint64_t SystemRunTime_500us = 0;
+
+uint32_t GetTick_1ms(void)
+{
+  return SystemRunTime_1ms;
+}
+
+
+uint64_t GetTick_500us(void)
+{
+  return SystemRunTime_500us;
+}
+
+void Task_500us()
+{
+	
+
+}
+
+
+void Task_1ms()
+{
+
+
+
+}
+void Task_2ms()
+{
+
+
+}
+
+void Task_5ms()
+{
+
+
+}
+void Task_10ms()
+{
+
+
+}
+
+void Task_20ms()
+{	
+
+
+
+}
+
+void Task_50ms()
+{
+	
+
+}
+
+void Task_100ms()
+{
+	
+}
+
+void Task_500ms()
+{
+	LED1_TOGGLE;
+}
+
+void Task_1000ms()
+{   
+	LED0_TOGGLE;
+	BEEP_TOGGLE;
+
+}
+
+void TaskSchedule()
+{
+	static uint64_t startValue_500us = 0;
+    static uint32_t startValue_1ms = 0;
+    static uint32_t startValue_2ms = 0;
+    static uint32_t startValue_5ms = 0;
+    static uint32_t startValue_10ms = 0;
+    static uint32_t startValue_20ms = 0;
+    static uint32_t startValue_50ms = 0;
+    static uint32_t startValue_100ms = 0;
+    static uint32_t startValue_500ms = 0;
+    static uint32_t startValue_1000ms = 0;
+    if (GetTick_500us() - startValue_500us >= TASK_PERIOD_500US)
+    {
+        startValue_500us = GetTick_500us();
+        Task_500us();
+    }
+    if (GetTick_1ms() - startValue_1ms >= TASK_PERIOD_1MS)
+    {
+        startValue_1ms = GetTick_1ms();
+        Task_1ms();
+    }
+    if (GetTick_1ms() - startValue_2ms >= TASK_PERIOD_2MS)
+    {
+    	startValue_2ms = GetTick_1ms();
+        Task_2ms();
+    }
+    if (GetTick_1ms() - startValue_5ms >= TASK_PERIOD_5MS)
+    {
+    	startValue_5ms = GetTick_1ms();
+        Task_5ms();
+    }
+    if (GetTick_1ms() - startValue_10ms >= TASK_PERIOD_10MS)
+    {
+    	startValue_10ms = GetTick_1ms();
+        Task_10ms();
+    }
+    if (GetTick_1ms() - startValue_20ms >= TASK_PERIOD_20MS)
+    {
+    	startValue_20ms = GetTick_1ms();
+        Task_20ms();
+    }
+    if (GetTick_1ms() - startValue_50ms >= TASK_PERIOD_50MS)
+    {
+    	startValue_50ms = GetTick_1ms();
+        Task_50ms();
+    }
+    if (GetTick_1ms() - startValue_100ms >= TASK_PERIOD_100MS)
+    {
+    	startValue_100ms = GetTick_1ms();
+        Task_100ms();
+    }
+    if (GetTick_1ms() - startValue_500ms >= TASK_PERIOD_500MS)
+    {
+    	startValue_500ms = GetTick_1ms();
+        Task_500ms();
+    }
+    if (GetTick_1ms() - startValue_1000ms >= TASK_PERIOD_1000MS)
+    {
+        startValue_1000ms = GetTick_1ms();
+	    Task_1000ms();
+    }
+
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -103,7 +252,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    
+    TaskSchedule();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

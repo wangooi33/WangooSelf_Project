@@ -13,33 +13,36 @@ extern "C" {
 extern  uint32_t SystemCoreClock;
 
 /* types ---------------------------------------------------------------------*/
-typedef uint32_t TickType_t;
+
 typedef long BaseType_t;
 typedef unsigned long UBaseType_t;
-typedef void * TaskHandle_t;
-typedef void (*TaskFunction_t)( void * );
-typedef uint32_t StackType_t;
+
 /* macro --------------------------------------------------------------------*/
+
+#define pdTRUE			( ( BaseType_t ) 1 )
+#define pdFALSE			( ( BaseType_t ) 0 )
+#define pdPASS			( pdTRUE )
+#define pdFAIL			( pdFALSE )
 
 #define PortSVC_Handler				SVC_Handler
 #define PortSysTick_Handler			SysTick_Handler
 #define PortPendSV_Handler			PendSV_Handler
+
 
 #define port_INLINE					__forceinline
 
 //任务调用周期:1Hz->1s调用1000次
 #define portCPU_CLOCK_HZ			( SystemCoreClock )
 #define portTICK_RATE_HZ			( 1000 )
-#define portMAX_DEALY				( TickType_t ) 0xFFFFFFFFUL
+#define portMAX_DEALY				( TickType_t )0xFFFFFFFFUL
 
 
-//堆内存
+//堆内存大小
 #define portHEAP_MAXSIZE			( ( size_t )( 75 * 1024 ) )
 //8字节对齐
 #define portBYTE_ALIGNED			8
 //字节对齐掩码
 #define portBYTE_ALIGNED_MASK		0x0007
-
 
 
 //Cortex-M优先级位数
@@ -88,8 +91,6 @@ typedef uint32_t StackType_t;
 #define portFPCCR_ASPEN_AND_LSPEN_BITS		( 0x3UL << 30UL )
 
 
-/* macro.功能使能开关 --------------------------------------------------------------*/
-
 //Tick溢出处理
 #define portENABLE_TICK_OVERFLOW_CHECK 		0
 //低功耗模式
@@ -101,13 +102,21 @@ typedef uint32_t StackType_t;
 //栈溢出检查
 #define portENABLE_STACK_OVERFLOW_CHECK		1
 
+
+
+//错误码
+#define		errCODE_NOT_ALLOCTAE_MEMORY		( -1 )
+
+
 /* functions prototypes ------------------------------------------------------------*/
 void *pHeapMalloc( size_t WantedSize );
 void vHeapFree( void * pDel );
 void StackOverflowHook(TaskHandle_t Task,char *pTaskName);
 
-void PortRaiseBASEPRI( void );
-void PortSetBASEPRI( uint32_t ulBASEPRI );
+static port_INLINE void PortRaiseBASEPRI( void );
+static port_INLINE void PortSetBASEPRI( uint32_t ulBASEPRI );
+static port_INLINE uint32_t ulPortRaiseBASEPRI( void );
+void PortGetIPSR( void );
 
 void PortEnterCritical( void );
 void PortExitCritical( void );
@@ -118,14 +127,11 @@ void PortSysTick_Handler( void );
 void PortSVC_Handler( void );
 void PortPendSV_Handler(void);
 
-
 /* function -------------------------------------------------------------------------*/
 
-/* 请求一次PendSV上下文切换.
-会发生切换的时机是:
-	1.普通任务上下文(非临界区)几乎立刻发生任务切换 
-	2.在critical section里,PendSV已经挂起不会执行,直到退出临界区重新打开中断 
-	3.调度器被挂起,等待resume */
+#define portASSERT( x ) if( ( x ) == 0 ) { PortRaiseBASEPRI();for( ;; );}
+
+//发生PendSV中断
 #define portREQUEST_TASK_SWITCH()				\
 {												\
 	portSCB_ICSR = portICSR_PENDSV_BITSET;		\

@@ -23,11 +23,8 @@ void PortSVC_Handler( void );
 void PortPendSV_Handler(void);
 
 /*--------------------------------------------------------------------------------------*/
-#define		portASSERT( x )		if( ( x ) == 0 ) { PortRaiseBASEPRI();for( ;; );}
 
-/*--------------------------------------------------------------------------------------*/
-
-void PortRaiseBASEPRI( void )
+static port_INLINE void PortRaiseBASEPRI( void )
 {
 	uint32_t Newbasepri = portPRIORITY_MAX_SYSTEMCALL_LIMIT;
 	__asm
@@ -37,13 +34,29 @@ void PortRaiseBASEPRI( void )
 		isb
 	}
 }
-void PortSetBASEPRI( uint32_t ulBASEPRI )
+static port_INLINE uint32_t ulPortRaiseBASEPRI( void )
+{
+uint32_t Return, NewBASEPRI = portPRIORITY_MAX_SYSTEMCALL_LIMIT;
+
+	__asm
+	{
+		mrs Return, basepri
+		msr basepri, NewBASEPRI
+		dsb
+		isb
+	}
+
+	return Return;
+}
+
+static port_INLINE void PortSetBASEPRI( uint32_t ulBASEPRI )
 {
 	__asm
 	{
 		msr basepri, ulBASEPRI
 	}
 }
+
 
 void PortEnterCritical( void )
 {
@@ -165,7 +178,7 @@ void PortSysTick_Handler( void )
 {
 	PortRaiseBASEPRI();
 	{
-		if ( SysTickCount() != pdFALSE )
+		if ( TaskIncrementTick() != pdFALSE )
 		{
 			//请求一次PendSV中断
 			portSCB_ICSR = portICSR_PENDSV_BITSET;
@@ -326,6 +339,14 @@ __asm void PortPendSV_Handler(void)
 	msr psp, r0
 	isb
 
+	bx r14
+}
+
+__asm uint32_t PortGetIPSR( void )
+{
+	PRESERVE8
+
+	mrs r0, ipsr
 	bx r14
 }
 

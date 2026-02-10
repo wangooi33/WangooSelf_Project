@@ -47,8 +47,9 @@ extern "C" {
 
 /* Exported macro ------------------------------------------------------------*/
 /* USER CODE BEGIN EM */
-extern volatile uint64_t SystemRunTime_1ms;
-extern volatile uint64_t SystemRunTime_500μs;
+extern volatile uint32_t SystemRunTime_1ms;
+extern volatile uint64_t SystemRunTime_500us;
+
 /* USER CODE END EM */
 
 /* Exported functions prototypes ---------------------------------------------*/

@@ -46,17 +46,20 @@ typedef struct LIST
 
 /* functions prototypes ------------------------------------------------------*/
 
-#define  listIS_EMPTY( pList )                      ( ( BaseType_t )( ( pList )->NumberOfItems == 0 ) )
+#define listSET_LIST_ITEM_OWNER( pListItem, pOwner )	( ( pListItem )->pOwner = ( void * )( pOwner ) )
+#define listGET_LIST_ITEM_OWNER( pListItem )			( ( pListItem )->pOwner )
 
-#define  listSET_LISTITEM_VALUE( pListItem, value )  ( ( pListItem )->ItemValue = value )
-#define  listSET_LISTITEM_OWNER( pListItem, owner )  ( ( pListItem )->pOwner = ( void * )owner )
+#define listSET_LIST_ITEM_VALUE( pListItem, Value )		( ( pListItem )->ItemValue = ( Value ) )
+#define listGET_LIST_ITEM_VALUE( pListItem )			( ( pListItem )->ItemValue )
 
-#define  listGET_LISTITEM_VALUE( pListItem )        ( ( pListItem )->ItemValue )
-#define  listGET_LISTITEM_OWNER( pListItem )        ( ( pListItem )->pOwner )
-#define  listGET_LISTITEM_CONTAINER( pListItem )    ( ( pListItem )->pContainer )
-#define  listGET_ENDNEXT_LISTITEM_OWNER( pList )    ( ( &( ( pList )->ListEnd ) )->pNext->pOwner )
-#define  listGET_CURRENTLIST_LENTH( pList )         ( ( pList )->NumberOfItems )
-//跳过ListEnd节点,把下一个 TCB 拿出来
+#define listGET_ITEM_VALUE_OF_HEAD_ENTRY( pList )		( ( ( pList )->ListEnd ).pNext->ItemValue )
+
+
+#define listLIST_IS_EMPTY( pList )						( ( BaseType_t )( ( pList )->NumberOfItems == ( UBaseType_t )0 ) )
+
+#define listCURRENT_LIST_LENGTH( pList )				( ( pList )->NumberOfItems )
+
+//跳过ListEnd节点,找打到下一个TCB
 #define listGET_OWNER_OF_NEXT_ENTRY( pTCB, pList )											\
 {																							\
 	List_t * const pConstList = ( pList );													\
@@ -67,6 +70,12 @@ typedef struct LIST
 	}																						\
 	( pTCB ) = ( pConstList )->pIndex->pOwner;												\
 }
+
+#define listGET_OWNER_OF_HEAD_ENTRY( pList )  			( (&( ( pList )->ListEnd ))->Next->pOwner )
+
+#define listIS_CONTAINED_WITHIN( pList, pListItem ) 	( ( BaseType_t )( ( pListItem )->pContainer == ( void * )( pList ) ) )
+
+#define listLIST_ITEM_CONTAINER( pListItem ) 			( ( pListItem )->pContainer )
 
 
 /**
