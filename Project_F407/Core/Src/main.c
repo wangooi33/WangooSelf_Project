@@ -18,7 +18,6 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "adc.h"
 #include "crc.h"
 #include "dma.h"
 #include "iwdg.h"
@@ -28,24 +27,35 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "Task_Manage.h"
-#include "w_adc.h"
-#include "MotorData_Mgmt.h"
-#include "communicate.h"
+#include "key.h"
+#include "BDC_Control.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+const char SoftWareID[] = "S003";
 
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define TASK_PERIOD_1MS       1
+#define TASK_PERIOD_2MS       2
+#define TASK_PERIOD_5MS       5
+#define TASK_PERIOD_10MS      10
+
+#define TASK_PERIOD_20MS      20
+#define TASK_PERIOD_50MS      50
+#define TASK_PERIOD_100MS     100
+#define TASK_PERIOD_500MS     500
+#define TASK_PERIOD_1000MS    1000
 
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
+
 
 /* USER CODE END PM */
 
@@ -63,6 +73,135 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+volatile uint32_t SystemRunTime_1ms = 0;
+
+uint32_t GetTick_1ms(void)
+{
+  return SystemRunTime_1ms;
+}
+
+void Task_1ms()
+{
+
+
+
+}
+void Task_2ms()
+{
+
+
+}
+
+void Task_5ms()
+{
+
+
+}
+void Task_10ms()
+{
+
+
+}
+
+void Task_20ms()
+{	
+	
+
+
+}
+
+void Task_50ms()
+{
+	KeyTask_Cyclic();
+
+}
+
+void Task_100ms()
+{
+	LED1_TOGGLE;
+	
+}
+
+void Task_500ms()
+{
+	LED1_TOGGLE;
+}
+
+void Task_1000ms()
+{
+	LED4_TOGGLE;
+	HAL_IWDG_Refresh(&hiwdg);
+}
+
+void TaskSchedule()
+{
+    uint32_t now = GetTick_1ms();
+
+    static uint32_t t1 = 0;
+    static uint32_t t2 = 0;
+    static uint32_t t5 = 0;
+    static uint32_t t10 = 0;
+    static uint32_t t20 = 0;
+    static uint32_t t50 = 0;
+    static uint32_t t100 = 0;
+    static uint32_t t500 = 0;
+    static uint32_t t1000 = 0;
+
+    if ((int32_t)(now - t1) >= TASK_PERIOD_1MS)
+    {
+        t1 += TASK_PERIOD_1MS;
+        Task_1ms();
+    }
+
+    if ((int32_t)(now - t2) >= TASK_PERIOD_2MS)
+    {
+        t2 += TASK_PERIOD_2MS;
+        Task_2ms();
+    }
+
+    if ((int32_t)(now - t5) >= TASK_PERIOD_5MS)
+    {
+        t5 += TASK_PERIOD_5MS;
+        Task_5ms();
+    }
+
+    if ((int32_t)(now - t10) >= TASK_PERIOD_10MS)
+    {
+        t10 += TASK_PERIOD_10MS;
+        Task_10ms();
+    }
+
+    if ((int32_t)(now - t20) >= TASK_PERIOD_20MS)
+    {
+        t20 += TASK_PERIOD_20MS;
+        Task_20ms();
+    }
+
+    if ((int32_t)(now - t50) >= TASK_PERIOD_50MS)
+    {
+        t50 += TASK_PERIOD_50MS;
+        Task_50ms();
+    }
+
+    if ((int32_t)(now - t100) >= TASK_PERIOD_100MS)
+    {
+        t100 += TASK_PERIOD_100MS;
+        Task_100ms();
+    }
+
+    if ((int32_t)(now - t500) >= TASK_PERIOD_500MS)
+    {
+        t500 += TASK_PERIOD_500MS;
+        Task_500ms();
+    }
+
+    if ((int32_t)(now - t1000) >= TASK_PERIOD_1000MS)
+    {
+        t1000 += TASK_PERIOD_1000MS;
+        Task_1000ms();
+    }
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -95,23 +234,23 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_DMA_Init();
-  MX_TIM10_Init();
   MX_USART1_UART_Init();
   MX_CRC_Init();
-  MX_ADC1_Init();
-  /* USER CODE BEGIN 2 */
-  Root_Task(NULL);
-  HAL_TIM_Base_Start_IT(&htim10);
-  HAL_UARTEx_ReceiveToIdle_DMA(&huart1,gU1TxRxBuf,U1_TXRX_BUFMAX);
-  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&gADC1CaptureBuffer, ADC1_CAPTURE_BUF_MAXSIZE);
   MX_IWDG_Init();
-  vTaskStartScheduler();
+  MX_TIM1_Init();
+  MX_TIM7_Init();
+  /* USER CODE BEGIN 2 */
+  HAL_TIM_Base_Start_IT(&htim7);
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+  BDC_Disable();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    TaskSchedule();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

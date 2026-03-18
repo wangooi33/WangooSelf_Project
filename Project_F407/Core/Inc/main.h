@@ -31,11 +31,7 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "FreeRTOS.h"
-#include "list.h"
-#include "task.h"
-#include "queue.h"
-#include <string.h>
+
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -45,6 +41,7 @@ extern "C" {
 
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */
+extern volatile uint32_t SystemRunTime_1ms;
 
 /* USER CODE END EC */
 
@@ -77,6 +74,8 @@ void Error_Handler(void);
 #define BEEP_GPIO_Port GPIOG
 #define LED1_Pin GPIO_PIN_15
 #define LED1_GPIO_Port GPIOA
+#define BDC_SD_Pin GPIO_PIN_12
+#define BDC_SD_GPIO_Port GPIOG
 #define LED3_Pin GPIO_PIN_15
 #define LED3_GPIO_Port GPIOG
 #define LED4_Pin GPIO_PIN_8
