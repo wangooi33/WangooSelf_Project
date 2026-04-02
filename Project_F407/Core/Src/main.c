@@ -34,7 +34,7 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-const char SoftWareID[] = "S003";
+const char SoftWareID[] = "S004";
 
 /* USER CODE END PTD */
 
@@ -84,7 +84,6 @@ void Task_1ms()
 {
 
 
-
 }
 void Task_2ms()
 {
@@ -113,7 +112,7 @@ void Task_20ms()
 void Task_50ms()
 {
 	KeyTask_Cyclic();
-
+	BDC_MotorSpeedCalculate();
 }
 
 void Task_100ms()
@@ -239,10 +238,13 @@ int main(void)
   MX_IWDG_Init();
   MX_TIM1_Init();
   MX_TIM7_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_Base_Start_IT(&htim7);
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+  HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
+  HAL_TIM_Base_Start_IT(&htim3);   // 用于溢出中断
   BDC_Disable();
   /* USER CODE END 2 */
 
