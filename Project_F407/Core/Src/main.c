@@ -34,7 +34,7 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-const char SoftWareID[] = "S004";
+const char SoftWareID[] = "S005";
 
 /* USER CODE END PTD */
 
@@ -111,8 +111,11 @@ void Task_20ms()
 
 void Task_50ms()
 {
+	BDC_Cyclic();
+//	BDC_Enable();
+//	BDC_MotorSpeedCalculate();
+//	BDC_MotorCtrl(5040);
 	KeyTask_Cyclic();
-	BDC_MotorSpeedCalculate();
 }
 
 void Task_100ms()
@@ -244,8 +247,8 @@ int main(void)
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
   HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
-  HAL_TIM_Base_Start_IT(&htim3);   // 用于溢出中断
   BDC_Disable();
+  BDC_PIDInit(&(BDC_Info.PID_SpeedLoop));
   /* USER CODE END 2 */
 
   /* Infinite loop */

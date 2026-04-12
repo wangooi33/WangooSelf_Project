@@ -211,9 +211,6 @@ void HAL_TIM_Encoder_MspInit(TIM_HandleTypeDef* tim_encoderHandle)
     GPIO_InitStruct.Alternate = GPIO_AF2_TIM3;
     HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-    /* TIM3 interrupt Init */
-    HAL_NVIC_SetPriority(TIM3_IRQn, 0, 0);
-    HAL_NVIC_EnableIRQ(TIM3_IRQn);
   /* USER CODE BEGIN TIM3_MspInit 1 */
 
   /* USER CODE END TIM3_MspInit 1 */
@@ -301,8 +298,6 @@ void HAL_TIM_Encoder_MspDeInit(TIM_HandleTypeDef* tim_encoderHandle)
     */
     HAL_GPIO_DeInit(GPIOC, GPIO_PIN_6|GPIO_PIN_7);
 
-    /* TIM3 interrupt Deinit */
-    HAL_NVIC_DisableIRQ(TIM3_IRQn);
   /* USER CODE BEGIN TIM3_MspDeInit 1 */
 
   /* USER CODE END TIM3_MspDeInit 1 */
@@ -337,17 +332,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     {
     	SystemRunTime_1ms++;
     }
-	if (htim->Instance == TIM3)
-	{
-		if (__HAL_TIM_IS_TIM_COUNTING_DOWN(&htim3))
-		{
-			BDC_Info.EncoderOverflowCnt--;
-		}
-		else
-		{
-			BDC_Info.EncoderOverflowCnt++;
-		}
-	}
 }
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
@@ -365,3 +349,4 @@ void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim)
 }
 
 /* USER CODE END 1 */
+

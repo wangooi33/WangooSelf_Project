@@ -1,131 +1,80 @@
+/* Includes ------------------------------------------------------------------*/
 #include "key.h"
 #include "BDC_Control.h"
-
-KeyInfo_t KeyInfo;
-uint8_t KeyBit8Map = 0;
-
-void KeyTask_Cyclic( void )
+/* private variable ----------------------------------------------------------*/
+static uint8_t key_cnt[KEY_NUM] = {0};
+static uint8_t key_state[KEY_NUM] = {0}; // 0:松开 1:按下
+// GPIO映射
+static GPIO_TypeDef* KEY_PORT[KEY_NUM] = 
 {
-	static uint8_t i = 0;
-	static uint16_t wcount = 0;
-	switch (KeyInfo.KeyEventState)
+    KEY1_GPIO_Port, 
+	KEY2_GPIO_Port, 
+	KEY3_GPIO_Port,
+    KEY4_GPIO_Port, 
+    KEY5_GPIO_Port
+};
+static uint16_t KEY_PIN[KEY_NUM] = 
+{
+    KEY1_Pin, 
+	KEY2_Pin, 
+	KEY3_Pin, 
+	KEY4_Pin, 
+	KEY5_Pin
+};
+/* functions implementation --------------------------------------------------*/
+static KeyEvent_t KeyScan(void)
+{
+	for (int i = 0; i < KEY_NUM; i++)
 	{
-		case KeyEvent_Idle:
-			KeyInfo.KeyEventState = KeyEvent_Monitor;
-			break;
-		case KeyEvent_Monitor:
-			if ( GPIO_PIN_SET == HAL_GPIO_ReadPin(KEY1_GPIO_Port,KEY1_Pin) )
+		if ( HAL_GPIO_ReadPin(KEY_PORT[i], KEY_PIN[i]) == GPIO_PIN_SET )
+		{
+			if ( key_cnt[i] < DEBOUNCE_CNT )
 			{
-				//按键按下为高电平
-				KeyInfo.Key1ValidLevel++;
-				if ( KeyInfo.Key1ValidLevel >= 2 )
-				{
-					KeyInfo.Key1ValidLevel = 0;
-					KeyInfo.KeyEventState = Key1_Active;
-				}
+				key_cnt[i]++;
 			}
-			else
+			if ( key_cnt[i] >= DEBOUNCE_CNT && key_state[i] == 0 )
 			{
-				KeyInfo.Key1ValidLevel = 0;
+				key_state[i] = 1;
+				return (KeyEvent_t)(KEY1_PRESS + i);
 			}
-			
-			if ( GPIO_PIN_SET == HAL_GPIO_ReadPin(KEY2_GPIO_Port,KEY2_Pin) )
-			{
-				//按键按下为高电平
-				KeyInfo.Key2ValidLevel++;
-				if ( KeyInfo.Key2ValidLevel >= 2 )
-				{
-					KeyInfo.Key2ValidLevel = 0;
-					KeyInfo.KeyEventState = Key2_Active;
-				}
-			}
-			else
-			{
-				KeyInfo.Key2ValidLevel = 0;
-			}
-			
-			if ( GPIO_PIN_SET == HAL_GPIO_ReadPin(KEY3_GPIO_Port,KEY3_Pin) )
-			{
-				//按键按下为高电平
-				KeyInfo.Key3ValidLevel++;
-				if ( KeyInfo.Key3ValidLevel >= 2 )
-				{
-					KeyInfo.Key3ValidLevel = 0;
-					KeyInfo.KeyEventState = Key3_Active;
-				}
-			}
-			else
-			{
-				KeyInfo.Key3ValidLevel = 0;
-			}
-			
-			if ( GPIO_PIN_SET == HAL_GPIO_ReadPin(KEY4_GPIO_Port,KEY4_Pin) )
-			{
-				//按键按下为高电平
-				KeyInfo.Key4ValidLevel++;
-				if ( KeyInfo.Key4ValidLevel >= 2 )
-				{
-					KeyInfo.Key4ValidLevel = 0;
-					KeyInfo.KeyEventState = Key4_Active;
-				}
-			}
-			else
-			{
-				KeyInfo.Key4ValidLevel = 0;
-			}
-			
-			if ( GPIO_PIN_SET == HAL_GPIO_ReadPin(KEY5_GPIO_Port,KEY5_Pin) )
-			{
-				//按键按下为高电平
-				KeyInfo.Key5ValidLevel++;
-				if ( KeyInfo.Key5ValidLevel >= 2 )
-				{
-					KeyInfo.Key5ValidLevel = 0;
-					KeyInfo.KeyEventState = Key5_Active;
-				}
-			}
-			else
-			{
-				KeyInfo.Key5ValidLevel = 0;
-			}
-			break;
-		case Key1_Active:
-			BDC_Info.BDC_Dutyfactor = 1000;
-			BDC_SetPulse(BDC_Info.BDC_Dutyfactor);
-			BDC_Enable();
-			KeyInfo.KeyEventState = KeyEvent_Monitor;
-			break;
-		case Key2_Active:
-			BDC_Disable();
-			KeyInfo.KeyEventState = KeyEvent_Monitor;
-			break;
-		case Key3_Active:
-			BDC_Info.BDC_Dutyfactor += 200;
-			BDC_SetPulse(BDC_Info.BDC_Dutyfactor);
-			KeyInfo.KeyEventState = KeyEvent_Monitor;
-			break;
-		case Key4_Active:
-			BDC_Info.BDC_Dutyfactor -= 200;
-			BDC_SetPulse(BDC_Info.BDC_Dutyfactor);
-			KeyInfo.KeyEventState = KeyEvent_Monitor;
-			break;
-		case Key5_Active:
-			BDC_Disable();
-			wcount++;
-			if ( wcount >= 3 )
-			{
-				wcount = 0;
-				BDC_SetDirection( (++i % 2) ? MOTOR_FWD : MOTOR_REV );
-				BDC_Enable();
-				KeyInfo.KeyEventState = KeyEvent_Monitor;
-			}
-			break;
-
-		default:
-			KeyInfo.KeyEventState = KeyEvent_Idle;
-			break;
-		
+		}
+		else
+		{
+			key_cnt[i] = 0;
+			key_state[i] = 0;
+		}
 	}
+	return KEY_NONE;
 }
 
+void KeyTask_Cyclic(void)
+{
+    KeyEvent_t key = KeyScan();
+    switch ( key )
+    {
+        case KEY1_PRESS:   //启动(正转)
+			BDC_Info.PointRPM = 60;
+			BDC_Enable();
+            break;
+
+        case KEY2_PRESS:   //停止
+            BDC_Disable();
+            break;
+
+        case KEY3_PRESS:   //加速
+			BDC_Info.PointRPM += 5;
+            break;
+
+        case KEY4_PRESS:   //减速
+			BDC_Info.PointRPM -= 5;
+            break;
+
+        case KEY5_PRESS:   //反转
+			BDC_Info.PointRPM = -BDC_Info.PointRPM;
+            break;
+
+        default:
+            break;
+    }
+}
 

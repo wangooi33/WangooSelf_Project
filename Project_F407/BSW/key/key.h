@@ -5,33 +5,30 @@
 extern "C" {
 #endif
 
+/* Includes ------------------------------------------------------------------*/
 #include "main.h"
-
-typedef enum KeyST
+/* macro ---------------------------------------------------------------------*/
+#define KEY_NUM        5
+#define DEBOUNCE_CNT   2
+/* enum ----------------------------------------------------------------------*/
+typedef enum
 {
-	KeyEvent_Idle,
-	KeyEvent_Monitor,
-	Key1_Active,
-	Key2_Active,
-	Key3_Active,
-	Key4_Active,
-	Key5_Active,
-}KeyEventState_t;
+    KEY_NONE = 0,
+    KEY1_PRESS,
+    KEY2_PRESS,
+    KEY3_PRESS,
+    KEY4_PRESS,
+    KEY5_PRESS
+}KeyEvent_t;
+/* types ---------------------------------------------------------------------*/
 
-typedef struct
-{
-	KeyEventState_t KeyEventState;
-	uint8_t Key1ValidLevel;
-	uint8_t Key2ValidLevel;
-	uint8_t Key3ValidLevel;
-	uint8_t Key4ValidLevel;
-	uint8_t Key5ValidLevel;
-}KeyInfo_t;
-
-extern KeyInfo_t KeyInfo;
-void KeyTask_Cyclic( void );
+/* constants -----------------------------------------------------------------*/
 
 
+/* global variable -----------------------------------------------------------*/
+
+/* functions prototypes ------------------------------------------------------*/
+void KeyTask_Cyclic(void);
 
 
 #endif /* __KEY_H */
