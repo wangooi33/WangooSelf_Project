@@ -28,13 +28,14 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "key.h"
+#include "beep.h"
 #include "BDC_Control.h"
 
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-const char SoftWareID[] = "S005";
+const char SoftWareID[] = "S006";
 
 /* USER CODE END PTD */
 
@@ -82,7 +83,7 @@ uint32_t GetTick_1ms(void)
 
 void Task_1ms()
 {
-
+	Beep_StartupTone();
 
 }
 void Task_2ms()
@@ -113,7 +114,7 @@ void Task_50ms()
 {
 	BDC_Cyclic();
 //	BDC_Enable();
-//	BDC_MotorSpeedCalculate();
+//	BDC_EncoderCollects();
 //	BDC_MotorCtrl(5040);
 	KeyTask_Cyclic();
 }
@@ -248,7 +249,9 @@ int main(void)
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
   HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
   BDC_Disable();
-  BDC_PIDInit(&(BDC_Info.PID_SpeedLoop));
+  BDC_PIDIncInit(&(BDC_Info.PIDInc_SpeedLoop));
+  BDC_PIDPosInit(&(BDC_Info.PIDPos_SpeedLoop));
+  BDC_PIDPosInit(&(BDC_Info.PIDPos_PositionLoop));
   /* USER CODE END 2 */
 
   /* Infinite loop */

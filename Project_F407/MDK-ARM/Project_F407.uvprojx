@@ -339,7 +339,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32F407xx</Define>
               <Undefine></Undefine>
-              <IncludePath>../Core/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F4xx/Include;../Drivers/CMSIS/Include;../ASW/CheckData;../ASW/BDC_Control;../BSW/key</IncludePath>
+              <IncludePath>../Core/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F4xx/Include;../Drivers/CMSIS/Include;../ASW/CheckData;../ASW/BDC_Control;../BSW/key;..\BSW\beep</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -776,6 +776,16 @@
               <FileName>key.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\BSW\key\key.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>BSW/Beep</GroupName>
+          <Files>
+            <File>
+              <FileName>beep.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BSW\beep\beep.c</FilePath>
             </File>
           </Files>
         </Group>

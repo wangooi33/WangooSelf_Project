@@ -54,6 +54,7 @@ void KeyTask_Cyclic(void)
     {
         case KEY1_PRESS:   //启动(正转)
 			BDC_Info.PointRPM = 60;
+			//BDC_Info.PointPosition += BDC_PPR;
 			BDC_Enable();
             break;
 
