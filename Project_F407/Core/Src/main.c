@@ -30,12 +30,12 @@
 #include "key.h"
 #include "beep.h"
 #include "BDC_Control.h"
-
+#include "timers.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-const char SoftWareID[] = "S006";
+const char SoftWareID[] = "S007";
 
 /* USER CODE END PTD */
 
@@ -84,32 +84,24 @@ uint32_t GetTick_1ms(void)
 void Task_1ms()
 {
 	Beep_StartupTone();
-
+	TimersManagerTask();
 }
 void Task_2ms()
 {
 
-
 }
-
 void Task_5ms()
 {
-
 
 }
 void Task_10ms()
 {
 
-
 }
-
 void Task_20ms()
-{	
-	
-
+{
 
 }
-
 void Task_50ms()
 {
 	BDC_Cyclic();
@@ -122,20 +114,16 @@ void Task_50ms()
 void Task_100ms()
 {
 	LED1_TOGGLE;
-	
 }
-
 void Task_500ms()
 {
 	LED1_TOGGLE;
 }
-
 void Task_1000ms()
 {
 	LED4_TOGGLE;
 	HAL_IWDG_Refresh(&hiwdg);
 }
-
 void TaskSchedule()
 {
     uint32_t now = GetTick_1ms();

@@ -339,7 +339,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32F407xx</Define>
               <Undefine></Undefine>
-              <IncludePath>../Core/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F4xx/Include;../Drivers/CMSIS/Include;../ASW/CheckData;../ASW/BDC_Control;../BSW/key;..\BSW\beep</IncludePath>
+              <IncludePath>../Core/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F4xx/Include;../Drivers/CMSIS/Include;../ASW/BDC_Control;..\ASW\beep;..\ASW\key;..\BSW\CheckData;..\BSW\timers</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -750,16 +750,6 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>ASW/CheckData</GroupName>
-          <Files>
-            <File>
-              <FileName>check.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\ASW\CheckData\check.c</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
           <GroupName>ASW/BDC_Control</GroupName>
           <Files>
             <File>
@@ -770,22 +760,42 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>BSW/Key</GroupName>
+          <GroupName>ASW/Key</GroupName>
           <Files>
             <File>
               <FileName>key.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\BSW\key\key.c</FilePath>
+              <FilePath>..\ASW\key\key.c</FilePath>
             </File>
           </Files>
         </Group>
         <Group>
-          <GroupName>BSW/Beep</GroupName>
+          <GroupName>ASW/Beep</GroupName>
           <Files>
             <File>
               <FileName>beep.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\BSW\beep\beep.c</FilePath>
+              <FilePath>..\ASW\beep\beep.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>BSW/Timers</GroupName>
+          <Files>
+            <File>
+              <FileName>timers.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BSW\timers\timers.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>BSW/Check</GroupName>
+          <Files>
+            <File>
+              <FileName>check.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BSW\CheckData\check.c</FilePath>
             </File>
           </Files>
         </Group>
