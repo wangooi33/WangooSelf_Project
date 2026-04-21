@@ -26,6 +26,8 @@ typedef enum
 
 
 /* global variable -----------------------------------------------------------*/
+extern uint8_t KeyCnt[KEY_NUM];
+extern uint8_t KeyState[KEY_NUM];
 
 /* functions prototypes ------------------------------------------------------*/
 void KeyTask_Cyclic(void);

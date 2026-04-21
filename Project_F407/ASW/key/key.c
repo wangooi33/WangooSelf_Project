@@ -2,8 +2,8 @@
 #include "key.h"
 #include "BDC_Control.h"
 /* private variable ----------------------------------------------------------*/
-static uint8_t key_cnt[KEY_NUM] = {0};
-static uint8_t key_state[KEY_NUM] = {0}; // 0:松开 1:按下
+uint8_t KeyCnt[KEY_NUM] = {0};
+uint8_t KeyState[KEY_NUM] = {0}; // 0:松开 1:按下
 // GPIO映射
 static GPIO_TypeDef* KEY_PORT[KEY_NUM] = 
 {
@@ -28,20 +28,20 @@ static KeyEvent_t KeyScan(void)
 	{
 		if ( HAL_GPIO_ReadPin(KEY_PORT[i], KEY_PIN[i]) == GPIO_PIN_SET )
 		{
-			if ( key_cnt[i] < DEBOUNCE_CNT )
+			if ( KeyCnt[i] < DEBOUNCE_CNT )
 			{
-				key_cnt[i]++;
+				KeyCnt[i]++;
 			}
-			if ( key_cnt[i] >= DEBOUNCE_CNT && key_state[i] == 0 )
+			if ( KeyCnt[i] >= DEBOUNCE_CNT && KeyState[i] == 0 )
 			{
-				key_state[i] = 1;
+				KeyState[i] = 1;
 				return (KeyEvent_t)(KEY1_PRESS + i);
 			}
 		}
 		else
 		{
-			key_cnt[i] = 0;
-			key_state[i] = 0;
+			KeyCnt[i] = 0;
+			KeyState[i] = 0;
 		}
 	}
 	return KEY_NONE;
@@ -49,33 +49,41 @@ static KeyEvent_t KeyScan(void)
 
 void KeyTask_Cyclic(void)
 {
-    KeyEvent_t key = KeyScan();
-    switch ( key )
-    {
-        case KEY1_PRESS:   //启动(正转)
-			BDC_Info.PointRPM = 60;
-			//BDC_Info.PointPosition += BDC_PPR;
+	KeyEvent_t key = KeyScan();
+
+	switch (key)
+	{
+		case KEY1_PRESS:	// 启动
+			BDC_Disable();
+			BDC_ResetControlState(&BDC_Info);
+			BDC_EncoderReset();
+			BDC_PIDInit();
+
+			BDC_Info.Expectation.ExpectedRPM = 60.0f;
+			BDC_Info.Expectation.ExpectedRPM_Ramp = 0.0f;
+
 			BDC_Enable();
-            break;
+		break;
 
-        case KEY2_PRESS:   //停止
-            BDC_Disable();
-            break;
+		case KEY2_PRESS:	// 停止
+			BDC_Info.Expectation.ExpectedRPM = 0.0f;
+			break;
 
-        case KEY3_PRESS:   //加速
-			BDC_Info.PointRPM += 5;
-            break;
+		case KEY3_PRESS:	// 加速
+			BDC_Info.Expectation.ExpectedRPM += 5.0f;
+			break;
 
-        case KEY4_PRESS:   //减速
-			BDC_Info.PointRPM -= 5;
-            break;
+		case KEY4_PRESS:	// 减速
+			BDC_Info.Expectation.ExpectedRPM -= 5.0f;
+			break;
 
-        case KEY5_PRESS:   //反转
-			BDC_Info.PointRPM = -BDC_Info.PointRPM;
-            break;
+		case KEY5_PRESS:	// 反转
+			BDC_Info.Expectation.ExpectedRPM = -BDC_Info.Expectation.ExpectedRPM;
+			break;
 
-        default:
-            break;
-    }
+		default:
+			break;
+	}
 }
+
 

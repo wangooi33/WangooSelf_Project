@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "adc.h"
 #include "crc.h"
 #include "dma.h"
 #include "iwdg.h"
@@ -35,7 +36,7 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-const char SoftWareID[] = "S007";
+const char SoftWareID[] = "S008";
 
 /* USER CODE END PTD */
 
@@ -83,7 +84,6 @@ uint32_t GetTick_1ms(void)
 
 void Task_1ms()
 {
-	Beep_StartupTone();
 	TimersManagerTask();
 }
 void Task_2ms()
@@ -92,7 +92,7 @@ void Task_2ms()
 }
 void Task_5ms()
 {
-
+	BDC_Cyclic();
 }
 void Task_10ms()
 {
@@ -104,10 +104,6 @@ void Task_20ms()
 }
 void Task_50ms()
 {
-	BDC_Cyclic();
-//	BDC_Enable();
-//	BDC_EncoderCollects();
-//	BDC_MotorCtrl(5040);
 	KeyTask_Cyclic();
 }
 
@@ -231,15 +227,16 @@ int main(void)
   MX_TIM1_Init();
   MX_TIM7_Init();
   MX_TIM3_Init();
+  MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_Base_Start_IT(&htim7);
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
   HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
+  HAL_ADC_Start_DMA(&hadc1,(uint32_t *)gADC1CaptureBuffer,ADC1_CAPTURE_BUF_MAXSIZE);
   BDC_Disable();
-  BDC_PIDIncInit(&(BDC_Info.PIDInc_SpeedLoop));
-  BDC_PIDPosInit(&(BDC_Info.PIDPos_SpeedLoop));
-  BDC_PIDPosInit(&(BDC_Info.PIDPos_PositionLoop));
+  BDC_PIDInit();
+  BDC_CurrentOffsetCalibrate(&BDC_Info);
   /* USER CODE END 2 */
 
   /* Infinite loop */
