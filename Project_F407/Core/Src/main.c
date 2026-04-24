@@ -36,7 +36,7 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-const char SoftWareID[] = "S008";
+const char SoftWareID[] = "S009";
 
 /* USER CODE END PTD */
 
@@ -228,6 +228,9 @@ int main(void)
   MX_TIM7_Init();
   MX_TIM3_Init();
   MX_ADC1_Init();
+  MX_TIM5_Init();
+  MX_TIM8_Init();
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_Base_Start_IT(&htim7);
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
@@ -236,6 +239,10 @@ int main(void)
   HAL_ADC_Start_DMA(&hadc1,(uint32_t *)gADC1CaptureBuffer,ADC1_CAPTURE_BUF_MAXSIZE);
   BDC_Disable();
   BDC_PIDInit();
+  HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_2);
+  HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_3);
+  HAL_TIMEx_ConfigCommutationEvent(&htim8,TIM_TS_ITR3,TIM_COMMUTATION_SOFTWARE);
   BDC_CurrentOffsetCalibrate(&BDC_Info);
   /* USER CODE END 2 */
 

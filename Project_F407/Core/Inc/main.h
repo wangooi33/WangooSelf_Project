@@ -60,6 +60,8 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define LED2_Pin GPIO_PIN_2
 #define LED2_GPIO_Port GPIOE
+#define BLDC_SD_Pin GPIO_PIN_6
+#define BLDC_SD_GPIO_Port GPIOE
 #define KEY3_Pin GPIO_PIN_13
 #define KEY3_GPIO_Port GPIOC
 #define KEY1_Pin GPIO_PIN_0
@@ -72,6 +74,12 @@ void Error_Handler(void);
 #define KEY5_GPIO_Port GPIOG
 #define BEEP_Pin GPIO_PIN_7
 #define BEEP_GPIO_Port GPIOG
+#define BLDC_CH1N_Pin GPIO_PIN_13
+#define BLDC_CH1N_GPIO_Port GPIOH
+#define BLDC_CH2N_Pin GPIO_PIN_14
+#define BLDC_CH2N_GPIO_Port GPIOH
+#define BLDC_CH3N_Pin GPIO_PIN_15
+#define BLDC_CH3N_GPIO_Port GPIOH
 #define LED1_Pin GPIO_PIN_15
 #define LED1_GPIO_Port GPIOA
 #define BDC_SD_Pin GPIO_PIN_12

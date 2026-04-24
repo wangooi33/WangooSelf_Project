@@ -1,6 +1,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "key.h"
 #include "BDC_Control.h"
+#include "BLDC_Control.h"
 /* private variable ----------------------------------------------------------*/
 uint8_t KeyCnt[KEY_NUM] = {0};
 uint8_t KeyState[KEY_NUM] = {0}; // 0:松开 1:按下
@@ -54,6 +55,7 @@ void KeyTask_Cyclic(void)
 	switch (key)
 	{
 		case KEY1_PRESS:	// 启动
+			#if 0
 			BDC_Disable();
 			BDC_ResetControlState(&BDC_Info);
 			BDC_EncoderReset();
@@ -61,24 +63,30 @@ void KeyTask_Cyclic(void)
 
 			BDC_Info.Expectation.ExpectedRPM = 60.0f;
 			BDC_Info.Expectation.ExpectedRPM_Ramp = 0.0f;
-
+			
 			BDC_Enable();
+			#endif
+			BLDC_Info.Direction = MOTOR_FWD;
+			BLDC_Info.Pulse = 600;
+
+			BLDC_Enable();
+			Hall_enable();
 		break;
 
 		case KEY2_PRESS:	// 停止
-			BDC_Info.Expectation.ExpectedRPM = 0.0f;
+			//BDC_Info.Expectation.ExpectedRPM = 0.0f;
 			break;
 
 		case KEY3_PRESS:	// 加速
-			BDC_Info.Expectation.ExpectedRPM += 5.0f;
+			//BDC_Info.Expectation.ExpectedRPM += 5.0f;
 			break;
 
 		case KEY4_PRESS:	// 减速
-			BDC_Info.Expectation.ExpectedRPM -= 5.0f;
+			//BDC_Info.Expectation.ExpectedRPM -= 5.0f;
 			break;
 
 		case KEY5_PRESS:	// 反转
-			BDC_Info.Expectation.ExpectedRPM = -BDC_Info.Expectation.ExpectedRPM;
+			//BDC_Info.Expectation.ExpectedRPM = -BDC_Info.Expectation.ExpectedRPM;
 			break;
 
 		default:

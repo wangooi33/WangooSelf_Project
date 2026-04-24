@@ -339,7 +339,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32F407xx</Define>
               <Undefine></Undefine>
-              <IncludePath>../Core/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F4xx/Include;../Drivers/CMSIS/Include;../ASW/BDC_Control;../ASW/beep;../ASW/key;../BSW/CheckData;../BSW/timers</IncludePath>
+              <IncludePath>../Core/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F4xx/Include;../Drivers/CMSIS/Include;../ASW/BDC_Control;../ASW/beep;../ASW/key;../BSW/CheckData;../BSW/timers;..\ASW\BLDC_Control</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -924,6 +924,16 @@
               <FileName>BDC_Control.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\ASW\BDC_Control\BDC_Control.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>ASW/BLDC_Control</GroupName>
+          <Files>
+            <File>
+              <FileName>BLDC_Control.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\ASW\BLDC_Control\BLDC_Control.c</FilePath>
             </File>
           </Files>
         </Group>
