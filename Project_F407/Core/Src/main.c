@@ -21,7 +21,6 @@
 #include "adc.h"
 #include "crc.h"
 #include "dma.h"
-#include "iwdg.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -32,11 +31,12 @@
 #include "beep.h"
 #include "BDC_Control.h"
 #include "timers.h"
+#include "w_adc.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-const char SoftWareID[] = "S009";
+const char SoftWareID[] = "S010";
 
 /* USER CODE END PTD */
 
@@ -92,7 +92,9 @@ void Task_2ms()
 }
 void Task_5ms()
 {
+	ADC_Cyclic();
 	BDC_Cyclic();
+	BLDC_Cyclic();
 }
 void Task_10ms()
 {
@@ -118,7 +120,6 @@ void Task_500ms()
 void Task_1000ms()
 {
 	LED4_TOGGLE;
-	HAL_IWDG_Refresh(&hiwdg);
 }
 void TaskSchedule()
 {
@@ -223,7 +224,6 @@ int main(void)
   MX_DMA_Init();
   MX_USART1_UART_Init();
   MX_CRC_Init();
-  MX_IWDG_Init();
   MX_TIM1_Init();
   MX_TIM7_Init();
   MX_TIM3_Init();
@@ -231,19 +231,21 @@ int main(void)
   MX_TIM5_Init();
   MX_TIM8_Init();
   MX_USART2_UART_Init();
+  MX_ADC3_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_Base_Start_IT(&htim7);
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
   HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
   HAL_ADC_Start_DMA(&hadc1,(uint32_t *)gADC1CaptureBuffer,ADC1_CAPTURE_BUF_MAXSIZE);
+  HAL_ADC_Start_DMA(&hadc3,(uint32_t *)gADC3CaptureBuffer,ADC3_CAPTURE_BUF_MAXSIZE);
   BDC_Disable();
   BDC_PIDInit();
   HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_2);
   HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_3);
   HAL_TIMEx_ConfigCommutationEvent(&htim8,TIM_TS_ITR3,TIM_COMMUTATION_SOFTWARE);
-  BDC_CurrentOffsetCalibrate(&BDC_Info);
+  Motoer_CurrentOffsetCalibrate(&BDC_Info,&BLDC_Info);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -275,10 +277,9 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_LSI;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
   RCC_OscInitStruct.PLL.PLLM = 8;

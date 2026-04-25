@@ -556,11 +556,18 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	if (htim->Instance == TIM7)
 	{
 		SystemRunTime_1ms++;
+		
+		if ( gHallFirstEdge == 0 )
+		{
+			if ( (SystemRunTime_1ms - gHallLastEdgeMs) >= BLDC_HALL_TIMEOUT_MS )
+			{
+				//BLDC堵转
+				BLDC_Info.RPM = 0.0f;
+				BLDC_Info.MotorStalling = 1;
+			}
+		}
 	}
-	if (htim->Instance == TIM5)
-	{
-		//电机堵转时长记录
-	}
+
 }
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
@@ -576,23 +583,27 @@ void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim)
 
 	}
 }
+
 void HAL_TIM_TriggerCallback(TIM_HandleTypeDef *htim)
 {
 	if (htim->Instance == TIM5)
 	{
+		static uint8_t LastHall;
 		uint8_t Hall = Hall_GetState();
-		BLDCComm_t *pMosTable = (BLDC_GetDirection(&BLDC_Info) == MOTOR_FWD) ? gComFwd : gComRev;
 
-		if ( Hall == 0 || Hall == 7 
-			|| pMosTable[Hall].PwmPhase == PHASE_NONE || pMosTable[Hall].LowPhase == PHASE_NONE)
+		BLDC_HallTableSelect(BLDC_GetDirection(&BLDC_Info));
+
+		if ( Hall >= 1 && Hall <= 6 &&
+			pHallTable[Hall].PwmPhase != PHASE_NONE && pHallTable[Hall].LowPhase != PHASE_NONE )
 		{
-			BLDC_Disable();
-			return;
+			LastHall = Hall;
 		}
-
-		BLDC_ChangeMOSstate(pMosTable[Hall].PwmPhase,pMosTable[Hall].LowPhase,BLDC_Info.Pulse);
+		else
+		{
+			Hall = LastHall;
+		}
+		BLDC_ChangeMOSstate(pHallTable[Hall].PwmPhase,pHallTable[Hall].LowPhase,BLDC_Info.Pulse);
 	}
-	
 }
 
 /* USER CODE END 1 */

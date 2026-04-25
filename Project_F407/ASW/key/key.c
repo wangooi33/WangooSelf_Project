@@ -75,18 +75,30 @@ void KeyTask_Cyclic(void)
 
 		case KEY2_PRESS:	// 停止
 			//BDC_Info.Expectation.ExpectedRPM = 0.0f;
+			BLDC_Disable();
+			Hall_Disable();
 			break;
 
 		case KEY3_PRESS:	// 加速
 			//BDC_Info.Expectation.ExpectedRPM += 5.0f;
+			BLDC_Info.Pulse += 200;
 			break;
 
 		case KEY4_PRESS:	// 减速
 			//BDC_Info.Expectation.ExpectedRPM -= 5.0f;
+			BLDC_Info.Pulse -= 200;
 			break;
 
 		case KEY5_PRESS:	// 反转
 			//BDC_Info.Expectation.ExpectedRPM = -BDC_Info.Expectation.ExpectedRPM;
+			if ( BLDC_Info.Direction == MOTOR_FWD )
+			{
+				BLDC_Info.Direction = MOTOR_REV;
+			}
+			else if ( BLDC_Info.Direction == MOTOR_REV )
+			{
+				BLDC_Info.Direction = MOTOR_FWD;
+			}
 			break;
 
 		default:

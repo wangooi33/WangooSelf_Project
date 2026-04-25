@@ -21,22 +21,6 @@ void BDC_Enable( void )
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
 }
-void BDC_CurrentOffsetCalibrate(BDC_Info_t *pBDC)
-{
-	//作为系统初始化的最后一个函数,加入蜂鸣器提示
-	uint32_t Sum = 0;
-	
-	BEEP_ON;
-	// 确保电机断电、无电流
-	for ( uint8_t i = 0; i < 200; i++ )
-	{
-		Sum += gADC1CaptureBuffer[IN9_PB1];
-		HAL_Delay(2);
-	}
-	BEEP_OFF;
-	pBDC->CurrZeroOffsetV = ((float)Sum / 200.0f) * 3.3f / 4095.0f;
-	pBDC->CurrFilt = 0.0f;
-}
 void BDC_PIDIncSpeedInit( PID_Inc_t *pPID )
 {
 	pPID->Kp = 5.5f;
@@ -89,29 +73,6 @@ void BDC_EncoderCollects( BDC_Info_t *pBDC )
 	//rps = (delta / PPR) / 0.01    ->(10ms周期)
 	//RPM = rps × 60
 	pBDC->RPM = (float)(ENCODER_DIRSIGN * Delta) * 60.0f / (BDC_PPR * 0.01f);
-}
-void BDC_ADCCollects( BDC_Info_t *pBDC )
-{
-	float vbus_adc = (float)gADC1CaptureBuffer[IN8_PB0] * 3.3f / 4095.0f;
-	float curr_adc = (float)gADC1CaptureBuffer[IN9_PB1] * 3.3f / 4095.0f;
-
-	// 电压(先转电压再计算)
-	pBDC->PowerVoltage = (vbus_adc - 1.24f) * 37.0f;
-
-	// 电流(带零偏)
-	float curr_raw = (curr_adc - pBDC->CurrZeroOffsetV) / (8.0f * 0.02f) * 1000.0f;
-
-	// 一阶低通滤波
-	pBDC->CurrFilt = 0.9f * pBDC->CurrFilt + 0.1f * curr_raw;
-
-	//单向限幅
-	if ( pBDC->CurrFilt < 0 )
-
-	{
-		pBDC->CurrFilt = 0;
-	}
-
-	pBDC->EleCurrent = pBDC->CurrFilt;
 }
 
 float BDC_SpeedIncPID_Cal( PID_Inc_t *pPID, float Expectation, float CurrentVal )
@@ -197,7 +158,7 @@ int16_t BDC_CurrentPI_Cal( PID_Pos_t *pID, float Target, float Feedback )
 
 void BDC_MotorCtrl( int16_t pulse )
 {
-	if ( pulse > -PWM_DEADZONE && pulse < PWM_DEADZONE )
+	if ( pulse > -BDC_PWM_DEADZONE && pulse < BDC_PWM_DEADZONE )
 	{
 		pulse = 0;
 	}
@@ -228,7 +189,7 @@ void BDC_EncoderReset( void )
 void BDC_ResetControlState( BDC_Info_t *pBDC )
 {
 	pBDC->Expectation.ExpectedCur = 0.0f;
-	pBDC->EleCurrent = 0.0f;
+	pBDC->CurrentRealTime = 0.0f;
 	pBDC->CurrFilt = 0.0f;
 
 	pBDC->PIDPos_SpeedLoop.SumError = 0.0f;
@@ -274,7 +235,6 @@ void BDC_Cyclic(void)
 	int16_t Pulse;
 	static uint8_t SpeedLoopCnt = 0;
 
-	BDC_ADCCollects(&BDC_Info);
 	BDC_RampTargetRPM(&BDC_Info);		//斜坡增量
 
 	//速度环降频:10ms
@@ -290,7 +250,7 @@ void BDC_Cyclic(void)
 	}
 
 	//电流环
-	Pulse = BDC_CurrentPI_Cal(&BDC_Info.PID_CurrentLoop,BDC_Info.Expectation.ExpectedCur,BDC_Info.EleCurrent);
+	Pulse = BDC_CurrentPI_Cal(&BDC_Info.PID_CurrentLoop,BDC_Info.Expectation.ExpectedCur,BDC_Info.CurrentRealTime);
 
 	BDC_MotorCtrl(Pulse);
 }

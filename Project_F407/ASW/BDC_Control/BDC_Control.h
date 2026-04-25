@@ -14,7 +14,7 @@ extern "C" {
 #define BDC_MIN_CUR_TARGET		(-10000.0f)
 #define BDC_MAX_PWMDUTY     	(5600 * 0.9)
 #define BDC_MIN_PWMDUTY     	-(5600 * 0.9)
-#define PWM_DEADZONE  			(20)									//PWM死区
+#define BDC_PWM_DEADZONE  		(20)									//PWM死区
 #define ENCODER_Lines			(32)									//编码器线数
 #define ENCODER_DIRSIGN   		(-1)									//编码器方向
 #define BDC_SPEEDRATIO			(30)									//电机减速比
@@ -25,8 +25,8 @@ extern "C" {
 /* enum ----------------------------------------------------------------------*/
 typedef enum
 {
-	IN8_PB0,
-	IN9_PB1,
+	BDC_PowerVoltage,		//Channel_8:电源电压
+	BDC_MotorCurrent,		//Channel_9:电机电流
 }ADC1_ChannelIndex_t;
 
 /* types ---------------------------------------------------------------------*/
@@ -56,11 +56,11 @@ typedef struct
 
 typedef struct BDC
 {
-	float PowerVoltage;
-	float EleCurrent;
-	float CurrZeroOffsetV;				//电流零偏（单位：V）
+	float PowerVoltage;					//电源电压
+	float CurrentRealTime;				//当前电流
+	float CurrZeroOffsetV;				//电流零偏 (单位：V)
 	float CurrFilt;						//电流滤波值
-	float PulseCnt;
+	float PulseCnt;						//脉冲计数
 	float RPM;
 	
 	Expectations_t Expectation;
@@ -81,7 +81,6 @@ void BDC_PIDInit( void );
 void BDC_EncoderReset( void );
 void BDC_ResetControlState( BDC_Info_t *pBDC );
 
-void BDC_CurrentOffsetCalibrate( BDC_Info_t *pBDC );
 void BDC_Cyclic( void );
 
 
