@@ -30,7 +30,7 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-const char SoftWareID[] = "W007";
+const char SoftWareID[] = "W008";
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -77,8 +77,6 @@ uint32_t GetTick_1ms(void)
 {
   return SystemRunTime_1ms;
 }
-
-
 uint64_t GetTick_500us(void)
 {
   return SystemRunTime_500us;
@@ -138,10 +136,9 @@ void Task_500ms()
 }
 
 void Task_1000ms()
-{   
+{
 	LED0_TOGGLE;
 	BEEP_TOGGLE;
-
 }
 
 void TaskSchedule()
@@ -243,6 +240,8 @@ int main(void)
   MX_DMA_Init();
   MX_USART1_UART_Init();
   MX_TIM1_Init();
+  MX_USART2_UART_Init();
+  MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_Base_Start_IT(&htim1);
   HAL_UARTEx_ReceiveToIdle_DMA(&huart1,gU1TxRxBuf,U1_TXRX_BUFMAX);

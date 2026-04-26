@@ -53,7 +53,7 @@ extern volatile uint64_t SystemRunTime_500us;
 /* USER CODE END EM */
 
 /* Exported functions prototypes ---------------------------------------------*/
-
+void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
 void Error_Handler(void);
@@ -69,6 +69,8 @@ void Error_Handler(void);
 #define LED1_GPIO_Port GPIOE
 #define KEY_UP_Pin GPIO_PIN_0
 #define KEY_UP_GPIO_Port GPIOA
+#define RE485_Pin GPIO_PIN_7
+#define RE485_GPIO_Port GPIOD
 #define LED0_Pin GPIO_PIN_5
 #define LED0_GPIO_Port GPIOB
 #define BEEP_Pin GPIO_PIN_8
@@ -86,6 +88,9 @@ void Error_Handler(void);
 #define BEEP_ON HAL_GPIO_WritePin(BEEP_GPIO_Port, BEEP_Pin, GPIO_PIN_SET)
 #define BEEP_OFF HAL_GPIO_WritePin(BEEP_GPIO_Port, BEEP_Pin, GPIO_PIN_RESET)
 #define BEEP_TOGGLE HAL_GPIO_TogglePin(BEEP_GPIO_Port, BEEP_Pin)
+
+#define RX485 HAL_GPIO_WritePin(RE485_GPIO_Port, RE485_Pin, GPIO_PIN_RESET)
+#define TX485 HAL_GPIO_WritePin(RE485_GPIO_Port, RE485_Pin, GPIO_PIN_SET)
 
 /* USER CODE END Private defines */
 
