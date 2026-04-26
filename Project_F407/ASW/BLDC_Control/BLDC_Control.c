@@ -3,6 +3,10 @@
 
 /* global variable -----------------------------------------------------------*/
 BLDC_Info_t BLDC_Info;
+Hall_Info_t Hall_Info =
+{
+	.HallFirstEdge = 1
+};
 
 BLDCMosCom_t gComFwd[8] =
 {
@@ -28,10 +32,10 @@ BLDCMosCom_t gComRev[8] =
 };
 BLDCMosCom_t *pHallTable = NULL;
 
-volatile uint32_t gHallLastEdgeMs = 0;				//LastCnt
-uint8_t gHallFirstEdge = 1;							//首次启动
 /* functions declaration -----------------------------------------------------*/
 static void prvDisableAllMos( void );
+uint8_t Hall_GetState( void );
+MotorDir_t BLDC_GetDirection( BLDC_Info_t *pBLDC );
 
 /* functions implementation --------------------------------------------------*/
 static void prvDisableAllMos( void )
@@ -60,11 +64,22 @@ void BLDC_Enable( void )
 }
 void Hall_enable( void )
 {
-	__HAL_TIM_ENABLE_IT(&htim5, TIM_IT_TRIGGER);
-	__HAL_TIM_ENABLE_IT(&htim5, TIM_IT_UPDATE);
-	HAL_TIMEx_HallSensor_Start(&htim5);
+	uint8_t Hall;
 
-	HAL_TIM_TriggerCallback(&htim5);	// 执行一次换相
+	Hall_Info.HallFirstEdge   = 1;
+	Hall_Info.HallEdgeFlag	  = 0;
+	Hall_Info.HallTickCnt	  = 0;
+	Hall_Info.HallStateShadow = 0;
+	Hall_Info.HallLastEdgeMs  = SystemRunTime_1ms;
+
+	HAL_TIMEx_HallSensor_Start_IT(&htim5);
+	Hall = Hall_GetState();
+	BLDC_HallTableSelect(BLDC_GetDirection(&BLDC_Info));
+
+	if ( Hall >= 1 && Hall <= 6 )
+	{
+		BLDC_ChangeMOSstate(pHallTable[Hall].PwmPhase,pHallTable[Hall].LowPhase,BLDC_Info.Pulse);
+	}
 }
 void Hall_Disable(void)
 {
@@ -148,9 +163,106 @@ MotorDir_t BLDC_GetDirection( BLDC_Info_t *pBLDC )
 	return pBLDC->Direction;
 }
 
+static uint32_t prvMedian3( uint32_t Data1, uint32_t Median, uint32_t Data3 )
+{
+	//三点中值法:从大到小排序
+	uint32_t TempValue;
+	if ( Data1 > Median )
+	{
+		TempValue = Data1;
+		Data1 = Median;
+		Median = TempValue;
+	}
+	if ( Median > Data3 )
+	{
+		TempValue = Median;
+		Median = Data3;
+		Data3 = TempValue;
+	}
+	if ( Data1 > Median )
+	{
+		TempValue = Data1;
+		Data1 = Median;
+		Median = TempValue;
+	}
+	return Median;
+}
+static uint32_t prvHallPeriodFilter_Update( Hall_Info_t *pHall, uint32_t RawValue )
+{
+	HallSpeedFilter_t *Filter = &pHall->HallSpeedFilter;
+	uint32_t Median = RawValue;
+
+	if ( RawValue == 0U )
+	{
+		return 0U;
+	}
+
+	//填充
+	Filter->HallTickBuf[Filter->Index] = RawValue;
+	Filter->Index = (Filter->Index + 1) % 3;
+	if ( Filter->ValidCnt < 3 )
+	{
+		Filter->ValidCnt++;
+	}
+	//初始化
+	if ( Filter->Inited == 0 )
+	{
+		Filter->LastFilter = RawValue;
+		Filter->Inited = 1;
+		return RawValue;
+	}
+
+	if ( Filter->ValidCnt >= 3 )
+	{
+		uint8_t i0 = Filter->Index;
+		uint8_t i1 = (Filter->Index + 1) % 3;
+		uint8_t i2 = (Filter->Index + 2) % 3;
+		Median = prvMedian3(Filter->HallTickBuf[i0],Filter->HallTickBuf[i1],Filter->HallTickBuf[i2]);
+	}
+
+	//一阶 IIR: α = 1/8
+	Filter->LastFilter= Filter->LastFilter + ((int32_t)Median - (int32_t)Filter->LastFilter) / 8;
+
+	return Filter->LastFilter;
+}
+
+void BLDC_HallCyclic( Hall_Info_t *pHall )
+{
+	uint8_t Hall;
+	uint32_t RawDelta;
+	uint32_t FiltDelta;
+	
+	if ( pHall->HallEdgeFlag )
+	{
+		pHall->HallEdgeFlag = 0;
+		Hall = pHall->HallStateShadow;
+
+		BLDC_HallTableSelect(BLDC_GetDirection(&BLDC_Info));
+
+		if ( Hall >= 1 && Hall <= 6 &&
+			pHallTable[Hall].PwmPhase != PHASE_NONE && pHallTable[Hall].LowPhase != PHASE_NONE)
+		{
+			BLDC_ChangeMOSstate(pHallTable[Hall].PwmPhase,pHallTable[Hall].LowPhase,BLDC_Info.Pulse);
+		}
+
+		//BLDC_Info.RPM = 60.0f * BLDC_HALL_TIMER_HZ / ((float)Hall_Info.HallTickCnt * 6.0f * BLDC_POLE_PAIRS);
+
+		RawDelta = pHall->HallTickCnt;
+
+		if ( RawDelta > 0 )
+		{
+			FiltDelta = prvHallPeriodFilter_Update(&Hall_Info,RawDelta);
+
+			if ( FiltDelta > 0 )
+			{
+				BLDC_Info.RPM = 60.0f * (float)BLDC_HALL_TIMER_HZ / ((float)FiltDelta * 6.0f * (float)BLDC_POLE_PAIRS);
+			}
+		}
+	}
+}
 void BLDC_Cyclic( void )
 {
+	BLDC_HallCyclic(&Hall_Info);
 
-	
 }
 

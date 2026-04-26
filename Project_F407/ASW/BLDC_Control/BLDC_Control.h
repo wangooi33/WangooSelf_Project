@@ -17,13 +17,13 @@ extern "C" {
 #define BLDC_PWM_MIN_DUTY				(50U)
 
 #define BLDC_POLE_PAIRS					(2U)							//电机极对数
-#define BLDC_HALL_TIMER_HZ				(84000000UL / 128UL)
+#define BLDC_HALL_TIMER_HZ				(84000000UL / 84UL)				//定时器分频后的频率
 #define BLDC_HALL_MIN_TICKS				(8U)							//毛刺
 #define BLDC_HALL_TIMEOUT_MS			(300U)							//堵转计数
 
 
-#define BLDC_SD_ENABLE()  		HAL_GPIO_WritePin(BLDC_SD_GPIO_Port, BLDC_SD_Pin, GPIO_PIN_SET)
-#define BLDC_SD_DISABLE()  		HAL_GPIO_WritePin(BLDC_SD_GPIO_Port, BLDC_SD_Pin, GPIO_PIN_RESET)
+#define BLDC_SD_ENABLE()				HAL_GPIO_WritePin(BLDC_SD_GPIO_Port,BLDC_SD_Pin,GPIO_PIN_SET)
+#define BLDC_SD_DISABLE()				HAL_GPIO_WritePin(BLDC_SD_GPIO_Port,BLDC_SD_Pin,GPIO_PIN_RESET)
 
 /* enum ----------------------------------------------------------------------*/
 typedef enum
@@ -75,6 +75,15 @@ typedef struct
 
 typedef struct
 {
+	uint32_t HallTickBuf[3];			//霍尔原始值
+	uint8_t  Index;						//环形数组索引
+	uint8_t  ValidCnt;					//有效值计数,需计满3次
+	uint32_t LastFilter;				//上一次的一阶低通滤波值
+	uint8_t  Inited;					//初始化标志,1表示完成
+}HallSpeedFilter_t;
+
+typedef struct
+{
 	float PowerVoltage;					//电源电压
 	CurrentPhase_t CurrentPhase;		//相电流
 	PhaseSetV_t CurrZeroOffsetV;		//电流零偏 (单位:V)
@@ -87,11 +96,21 @@ typedef struct
 	uint8_t MotorStalling;				//电机堵转
 }BLDC_Info_t;
 
+typedef struct
+{
+	volatile uint32_t HallTickCnt;		//最近一次Hall周期的Tick
+	volatile uint8_t  HallEdgeFlag;		//Hall边沿到来标志
+	volatile uint8_t  HallStateShadow;	//中断触发时Hall三相信号
+	volatile uint32_t HallLastEdgeMs;	//最后一次Hall边沿发生的Tick,检测堵转
+	uint8_t  HallFirstEdge;				//Hall第一次触发标志
+
+	HallSpeedFilter_t HallSpeedFilter;	//3点中值滤波
+}Hall_Info_t;
+
 /* global variable -----------------------------------------------------------*/
 extern BLDC_Info_t BLDC_Info;
+extern Hall_Info_t Hall_Info;
 extern BLDCMosCom_t *pHallTable;
-extern volatile uint32_t gHallLastEdgeMs;
-extern uint8_t gHallFirstEdge;
 
 /* functions prototypes ------------------------------------------------------*/
 void Hall_enable( void );

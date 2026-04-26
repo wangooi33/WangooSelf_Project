@@ -193,12 +193,7 @@
         <Ww>
           <count>6</count>
           <WinNumber>1</WinNumber>
-          <ItemText>gHallLastEdgeMs</ItemText>
-        </Ww>
-        <Ww>
-          <count>7</count>
-          <WinNumber>1</WinNumber>
-          <ItemText>gHallFirstEdge</ItemText>
+          <ItemText>Hall_Info</ItemText>
         </Ww>
       </WatchWindow1>
       <Tracepoint>

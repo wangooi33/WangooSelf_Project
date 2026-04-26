@@ -155,9 +155,9 @@ void MX_TIM5_Init(void)
 
   /* USER CODE END TIM5_Init 1 */
   htim5.Instance = TIM5;
-  htim5.Init.Prescaler = 127;
+  htim5.Init.Prescaler = 83;
   htim5.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim5.Init.Period = 65535;
+  htim5.Init.Period = 4294967295;
   htim5.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim5.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   sConfig.IC1Polarity = TIM_ICPOLARITY_RISING;
@@ -364,7 +364,7 @@ void HAL_TIMEx_HallSensor_MspInit(TIM_HandleTypeDef* timex_hallsensorHandle)
     HAL_GPIO_Init(GPIOH, &GPIO_InitStruct);
 
     /* TIM5 interrupt Init */
-    HAL_NVIC_SetPriority(TIM5_IRQn, 2, 0);
+    HAL_NVIC_SetPriority(TIM5_IRQn, 5, 0);
     HAL_NVIC_EnableIRQ(TIM5_IRQn);
   /* USER CODE BEGIN TIM5_MspInit 1 */
 
@@ -557,23 +557,36 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	{
 		SystemRunTime_1ms++;
 		
-		if ( gHallFirstEdge == 0 )
+		if ( (SystemRunTime_1ms - Hall_Info.HallLastEdgeMs) >= BLDC_HALL_TIMEOUT_MS )
 		{
-			if ( (SystemRunTime_1ms - gHallLastEdgeMs) >= BLDC_HALL_TIMEOUT_MS )
-			{
-				//BLDC堵转
-				BLDC_Info.RPM = 0.0f;
-				BLDC_Info.MotorStalling = 1;
-			}
+			BLDC_Info.RPM = 0.0f;
+			BLDC_Info.MotorStalling = 1;
+			Hall_Info.HallFirstEdge = 1;
 		}
 	}
 
 }
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
-	if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1)
+	if (htim->Instance == TIM5 && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1)
 	{
+		uint32_t Cap = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
+		uint8_t Hall = Hall_GetState();
 
+		if ( Hall_Info.HallFirstEdge )
+		{
+			Hall_Info.HallFirstEdge = 0;
+			Hall_Info.HallTickCnt = 0;
+		}
+		else
+		{
+			Hall_Info.HallTickCnt = Cap;
+		}
+
+		Hall_Info.HallStateShadow = Hall;
+		Hall_Info.HallEdgeFlag = 1;
+		Hall_Info.HallLastEdgeMs = SystemRunTime_1ms;
+		BLDC_Info.MotorStalling = 0;
 	}
 }
 void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim)
@@ -588,22 +601,9 @@ void HAL_TIM_TriggerCallback(TIM_HandleTypeDef *htim)
 {
 	if (htim->Instance == TIM5)
 	{
-		static uint8_t LastHall;
-		uint8_t Hall = Hall_GetState();
 
-		BLDC_HallTableSelect(BLDC_GetDirection(&BLDC_Info));
-
-		if ( Hall >= 1 && Hall <= 6 &&
-			pHallTable[Hall].PwmPhase != PHASE_NONE && pHallTable[Hall].LowPhase != PHASE_NONE )
-		{
-			LastHall = Hall;
-		}
-		else
-		{
-			Hall = LastHall;
-		}
-		BLDC_ChangeMOSstate(pHallTable[Hall].PwmPhase,pHallTable[Hall].LowPhase,BLDC_Info.Pulse);
 	}
+	
 }
 
 /* USER CODE END 1 */
