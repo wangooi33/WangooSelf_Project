@@ -19,18 +19,22 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "dma.h"
+#include "iwdg.h"
+#include "spi.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "AT24Cxx.h"
+#include "NM25Qxx.h"
+#include "IAP.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-const char SoftWareID[] = "W008";
+const char SoftWareID[] = "W009";
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -58,6 +62,8 @@ const char SoftWareID[] = "W008";
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+volatile uint32_t SystemRunTime_1ms = 0;
+volatile uint64_t SystemRunTime_500us = 0;
 
 /* USER CODE END PV */
 
@@ -70,9 +76,6 @@ void Error_Handler(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-volatile uint32_t SystemRunTime_1ms = 0;
-volatile uint64_t SystemRunTime_500us = 0;
-
 uint32_t GetTick_1ms(void)
 {
   return SystemRunTime_1ms;
@@ -85,60 +88,53 @@ uint64_t GetTick_500us(void)
 void Task_500us()
 {
 	
-
 }
-
-
 void Task_1ms()
 {
-
-
-
+	if (BufReady1)
+	{
+		IAP_PacketUpdateProcess(gProcessBuf1,gRxSize);
+		BufReady1 = 0;
+	}
+	else if (BufReady2)
+	{
+		IAP_PacketUpdateProcess(gProcessBuf2,gRxSize);
+		BufReady2 = 0;
+	}
 }
 void Task_2ms()
 {
 
-
 }
-
 void Task_5ms()
 {
-
 
 }
 void Task_10ms()
 {
-
 
 }
 
 void Task_20ms()
 {	
 
-
-
 }
-
 void Task_50ms()
 {
 	
-
 }
-
 void Task_100ms()
 {
-	
+	HAL_IWDG_Refresh(&hiwdg);
 }
-
 void Task_500ms()
 {
 	LED1_TOGGLE;
 }
-
 void Task_1000ms()
 {
 	LED0_TOGGLE;
-	BEEP_TOGGLE;
+	//BEEP_TOGGLE;
 }
 
 void TaskSchedule()
@@ -205,7 +201,9 @@ void TaskSchedule()
     }
 
 }
-
+uint8_t EEupdate[4];
+uint8_t HeaderData[16];
+uint8_t AppData[8];
 /* USER CODE END 0 */
 
 /**
@@ -216,7 +214,8 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
+  __enable_irq();
+  SCB->VTOR = APP_START_ADDRESS;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -240,11 +239,20 @@ int main(void)
   MX_DMA_Init();
   MX_USART1_UART_Init();
   MX_TIM1_Init();
+  MX_IWDG_Init();
+  MX_SPI2_Init();
   MX_USART2_UART_Init();
-  MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_Base_Start_IT(&htim1);
-  HAL_UARTEx_ReceiveToIdle_DMA(&huart1,gU1TxRxBuf,U1_TXRX_BUFMAX);
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart1,gU1RxBuf,U1BUF_MAXSIZE);
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart2,gU2RxBuf,U2BUF_MAXSIZE);
+  DWT_Init();
+  AT24Cxx_Init();
+  Flash_Init();
+  AT24Cxx_Read(EXTEE_BOOT_UPDATEFLAG_ADDR,EEupdate,4);
+  
+  Flash_Read(HeaderData,EXTFLASH_HEADER_ADDR,16);
+  Flash_Read(AppData,EXTFLASH_APP_ADDR,8);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -272,10 +280,11 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;

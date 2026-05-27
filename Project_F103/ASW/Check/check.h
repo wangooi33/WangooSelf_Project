@@ -17,4 +17,9 @@ uint8_t CheckSum(uint8_t *pdata,uint16_t len);
 uint16_t CheckSum16(uint8_t *pdata,uint16_t len);
 uint16_t CheckCRC16_ModBus(uint8_t *ptr, uint32_t len);
 
+uint32_t CRC32_Init(void);
+uint32_t CRC32_Update(uint32_t crc, uint8_t *buf, uint32_t len);
+uint32_t CRC32_Final(uint32_t crc);
+uint32_t CheckCRC32(uint8_t *ptr, uint32_t len);
+
 #endif /* _CHECK_H_ */
