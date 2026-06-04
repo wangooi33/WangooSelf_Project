@@ -26,13 +26,6 @@
 #include "IAP.h"
 
 uint8_t gU1RxBuf[U1BUF_MAXSIZE];
-uint8_t gProcessBuf1[U1BUF_MAXSIZE];
-uint8_t gProcessBuf2[U1BUF_MAXSIZE];
-volatile uint8_t BufReady1 = 0;
-volatile uint8_t BufReady2 = 0;
-volatile uint16_t gRxSize = 0;
-static uint8_t BufIndex = 0;
-
 uint8_t gU2RxBuf[U2BUF_MAXSIZE];
 
 /* USER CODE END 0 */
@@ -298,26 +291,12 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
 	if (huart->Instance == USART1)
 	{
-	    if(BufIndex == 0)
-	    {
-	        memcpy(gProcessBuf1,gU1RxBuf,Size);
-	        gRxSize = Size;
-	        BufReady1 = 1;
-	        BufIndex = 1;
-	    }
-	    else
-	    {
-	        memcpy(gProcessBuf2,gU1RxBuf,Size);
-	        gRxSize = Size;
-	        BufReady2 = 1;
-	        BufIndex = 0;
-	    }
+	    IAP_RxProcess(gU1RxBuf,U1BUF_MAXSIZE);
 		HAL_UARTEx_ReceiveToIdle_DMA(&huart1,gU1RxBuf,U1BUF_MAXSIZE);
 	}
 	if (huart->Instance == USART2)
 	{
-
-		IAP_RxProcess(gU2RxBuf,Size);
+		//IAP_RxProcess(gU2RxBuf,Size);
 		HAL_UARTEx_ReceiveToIdle_DMA(&huart2,gU2RxBuf,U2BUF_MAXSIZE);
 	}
 }

@@ -37,8 +37,8 @@ extern UART_HandleTypeDef huart1;
 extern UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN Private defines */
-#define U1BUF_MAXSIZE 512
-#define U2BUF_MAXSIZE 64
+#define U1BUF_MAXSIZE 256
+#define U2BUF_MAXSIZE 256
 
 /* USER CODE END Private defines */
 
@@ -47,13 +47,8 @@ void MX_USART2_UART_Init(void);
 
 /* USER CODE BEGIN Prototypes */
 extern uint8_t gU1RxBuf[U1BUF_MAXSIZE];
-extern uint8_t gProcessBuf1[U1BUF_MAXSIZE];
-extern uint8_t gProcessBuf2[U1BUF_MAXSIZE];
-extern volatile uint8_t BufReady1;
-extern volatile uint8_t BufReady2;
-extern volatile uint16_t gRxSize;
-
 extern uint8_t gU2RxBuf[U2BUF_MAXSIZE];
+
 /* USER CODE END Prototypes */
 
 #ifdef __cplusplus

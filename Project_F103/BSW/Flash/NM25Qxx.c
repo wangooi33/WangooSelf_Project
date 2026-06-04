@@ -70,15 +70,15 @@ void Flash_EraseChip(void)
     NORFLASH_CS(1);
     prvFlashWaitBusy();
 }
-void Flash_EraseSector(uint32_t sAddr)
+void Flash_EraseSector(uint32_t SectorNum)
 {
-    sAddr *= 4096;
+    SectorNum *= 4096;
     prvFlashWriteEnable();
     prvFlashWaitBusy();
 
     NORFLASH_CS(0);
     prvSwapByte(FLASH_SectorErase);
-    prvFlashSendAddress(sAddr);
+    prvFlashSendAddress(SectorNum);
     NORFLASH_CS(1);
     prvFlashWaitBusy();
 }

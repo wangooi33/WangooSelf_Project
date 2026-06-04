@@ -30,11 +30,13 @@
 #include "AT24Cxx.h"
 #include "NM25Qxx.h"
 #include "IAP.h"
+#include "delay.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-const char SoftWareID[] = "W009";
+const char SoftWareID[] = "W010";
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -56,7 +58,7 @@ const char SoftWareID[] = "W009";
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
+#define IWDG_ENBALE 0
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -91,16 +93,7 @@ void Task_500us()
 }
 void Task_1ms()
 {
-	if (BufReady1)
-	{
-		IAP_PacketUpdateProcess(gProcessBuf1,gRxSize);
-		BufReady1 = 0;
-	}
-	else if (BufReady2)
-	{
-		IAP_PacketUpdateProcess(gProcessBuf2,gRxSize);
-		BufReady2 = 0;
-	}
+	IAP_Cyclic();
 }
 void Task_2ms()
 {
@@ -114,7 +107,6 @@ void Task_10ms()
 {
 
 }
-
 void Task_20ms()
 {	
 
@@ -125,7 +117,7 @@ void Task_50ms()
 }
 void Task_100ms()
 {
-	HAL_IWDG_Refresh(&hiwdg);
+	
 }
 void Task_500ms()
 {
@@ -135,6 +127,9 @@ void Task_1000ms()
 {
 	LED0_TOGGLE;
 	//BEEP_TOGGLE;
+#if IWDG_ENBALE
+	HAL_IWDG_Refresh(&hiwdg);
+#endif
 }
 
 void TaskSchedule()
@@ -201,9 +196,6 @@ void TaskSchedule()
     }
 
 }
-uint8_t EEupdate[4];
-uint8_t HeaderData[16];
-uint8_t AppData[8];
 /* USER CODE END 0 */
 
 /**
@@ -214,7 +206,6 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-  __enable_irq();
   SCB->VTOR = APP_START_ADDRESS;
   /* USER CODE END 1 */
 
@@ -242,17 +233,15 @@ int main(void)
   MX_IWDG_Init();
   MX_SPI2_Init();
   MX_USART2_UART_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_Base_Start_IT(&htim1);
+  HAL_TIM_Base_Start(&htim2);
   HAL_UARTEx_ReceiveToIdle_DMA(&huart1,gU1RxBuf,U1BUF_MAXSIZE);
   HAL_UARTEx_ReceiveToIdle_DMA(&huart2,gU2RxBuf,U2BUF_MAXSIZE);
   DWT_Init();
   AT24Cxx_Init();
   Flash_Init();
-  AT24Cxx_Read(EXTEE_BOOT_UPDATEFLAG_ADDR,EEupdate,4);
-  
-  Flash_Read(HeaderData,EXTFLASH_HEADER_ADDR,16);
-  Flash_Read(AppData,EXTFLASH_APP_ADDR,8);
   /* USER CODE END 2 */
 
   /* Infinite loop */

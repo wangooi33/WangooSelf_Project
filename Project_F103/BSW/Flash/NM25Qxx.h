@@ -62,7 +62,7 @@ extern uint16_t FlashType;
 void Flash_Init(void);
 void Flash_Read(uint8_t *pBuf, uint32_t Addr, uint16_t Datalen);
 void Flash_EraseChip(void);
-void Flash_EraseSector(uint32_t sAddr);
+void Flash_EraseSector(uint32_t SectorNum);
 void Flash_Write(uint8_t *pBuf, uint32_t Addr, uint16_t Datalen);
 
 

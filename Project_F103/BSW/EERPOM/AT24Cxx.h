@@ -20,7 +20,6 @@
 
 
 /* functions prototypes -----------------------------------------------------*/
-void DWT_Init(void);
 void AT24Cxx_Init(void);
 void AT24Cxx_Read(uint16_t Addr, uint8_t *pBuf, uint16_t Datalen);
 void AT24Cxx_Write(uint16_t Addr, uint8_t *pBuf, uint16_t Datalen);
