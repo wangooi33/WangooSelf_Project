@@ -24,19 +24,24 @@
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
+#include "fsmc.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "delay.h"
 #include "AT24Cxx.h"
 #include "NM25Qxx.h"
 #include "IAP.h"
-#include "delay.h"
+#include "OV7725.h"
+#include "LCD.h"
+#include "LF0038.h"
+#include "rgb_led.h"
 
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-const char SoftWareID[] = "W010";
+const char SoftWareID[] = "W011";
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -105,7 +110,7 @@ void Task_5ms()
 }
 void Task_10ms()
 {
-
+	RGB_RainbowTask();
 }
 void Task_20ms()
 {	
@@ -121,7 +126,7 @@ void Task_100ms()
 }
 void Task_500ms()
 {
-	LED1_TOGGLE;
+	//LED1_TOGGLE;
 }
 void Task_1000ms()
 {
@@ -229,19 +234,21 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_USART1_UART_Init();
-  MX_TIM1_Init();
   MX_IWDG_Init();
   MX_SPI2_Init();
   MX_USART2_UART_Init();
-  MX_TIM2_Init();
+  MX_FSMC_Init();
+  MX_TIM6_Init();
+  MX_TIM4_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
-  HAL_TIM_Base_Start_IT(&htim1);
-  HAL_TIM_Base_Start(&htim2);
+  HAL_TIM_Base_Start_IT(&htim6);
   HAL_UARTEx_ReceiveToIdle_DMA(&huart1,gU1RxBuf,U1BUF_MAXSIZE);
   HAL_UARTEx_ReceiveToIdle_DMA(&huart2,gU2RxBuf,U2BUF_MAXSIZE);
   DWT_Init();
   AT24Cxx_Init();
   Flash_Init();
+  RGB_Init();
   /* USER CODE END 2 */
 
   /* Infinite loop */

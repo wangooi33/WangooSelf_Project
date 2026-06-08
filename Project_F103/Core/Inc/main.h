@@ -87,8 +87,6 @@ void Error_Handler(void);
 #define BEEP_OFF HAL_GPIO_WritePin(BEEP_GPIO_Port, BEEP_Pin, GPIO_PIN_RESET)
 #define BEEP_TOGGLE HAL_GPIO_TogglePin(BEEP_GPIO_Port, BEEP_Pin)
 
-#define RX485 HAL_GPIO_WritePin(RE485_GPIO_Port, RE485_Pin, GPIO_PIN_RESET)
-#define TX485 HAL_GPIO_WritePin(RE485_GPIO_Port, RE485_Pin, GPIO_PIN_SET)
 
 /* USER CODE END Private defines */
 
