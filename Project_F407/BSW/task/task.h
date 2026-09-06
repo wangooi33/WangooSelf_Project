@@ -20,15 +20,26 @@ extern "C" {
 #define TASK_PERIOD_500MS     500
 #define TASK_PERIOD_1000MS    1000
 
+/* enum ----------------------------------------------------------------------*/
+typedef enum
+{
+    TASK_CONTROL_IDLE = 0U,
+    TASK_CONTROL_SPEED,
+    TASK_CONTROL_POSITION,
+    TASK_CONTROL_CURRENT
+} TaskControlMode_t;
+
 /* global variable -----------------------------------------------------------*/
 extern volatile uint32_t SystemRunTime_1ms;
+extern volatile TaskControlMode_t TaskControlMode;
+
 /* functions prototypes ------------------------------------------------------*/
 void TaskSchedule(void);
-
+void Task_SetControlMode(TaskControlMode_t mode);
+TaskControlMode_t Task_GetControlMode(void);
 
 #ifdef __cplusplus
 }
 #endif
 
 #endif /* __TASK_H */
-

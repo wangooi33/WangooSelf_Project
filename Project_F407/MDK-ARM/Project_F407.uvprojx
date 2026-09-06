@@ -339,7 +339,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32F407xx</Define>
               <Undefine></Undefine>
-              <IncludePath>../Core/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F4xx/Include;../Drivers/CMSIS/Include;../BSW/CheckData;../BSW/timers;../ASW/w_adc;../BSW/task;../ASW/bldc_control;../BSW/pid;../ASW/key</IncludePath>
+              <IncludePath>../Core/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F4xx/Include;../Drivers/CMSIS/Include;../BSW/CheckData;../BSW/timers;../ASW/w_adc;../BSW/task;../ASW/bldc_control;../BSW/pid;../ASW/key;..\Component\com103;..\Component\ec11</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -882,6 +882,21 @@
               <FileName>check.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\BSW\CheckData\check.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Component</GroupName>
+          <Files>
+            <File>
+              <FileName>com103.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Component\com103\com103.c</FilePath>
+            </File>
+            <File>
+              <FileName>ec11.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Component\ec11\ec11.c</FilePath>
             </File>
           </Files>
         </Group>
