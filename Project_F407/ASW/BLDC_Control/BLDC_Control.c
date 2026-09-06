@@ -12,7 +12,6 @@
 #define SPEED_PID_KP				(0.01f)
 #define SPEED_PID_KI				(0.005f)
 #define SPEED_PID_LIMIT				(3.0f)
-#define SPEED_BRAKE_CURRENT_LIMIT	(0.5f)
 
 /* global variable -----------------------------------------------------------*/
 BLDC_Info_t BLDC_Info;
@@ -53,20 +52,35 @@ void BLDC_PidInit(void)
 	
 	PID_Init(&speed_pid,SPEED_PID_KP,SPEED_PID_KI,0,
 	         SPEED_PID_LIMIT,0.0f,0.001f);
-	FOC_Info.Speed_Ref = 400.0f;
+	BLDC_SetSpeedRef(400.0f);
+}
+
+void BLDC_SetSpeedRef(float speedRpm)
+{
+	FOC_Info.Speed_Ref = Clampf(speedRpm,
+	                            -BLDC_MAX_SPEED_RPM, BLDC_MAX_SPEED_RPM);
+}
+
+float BLDC_GetSpeedRef(void)
+{
+	return FOC_Info.Speed_Ref;
 }
 
 void BLDC_SpeedPID(void)
 {
     static uint8_t speedLoopInited = 0;
+    static int8_t speedLoopDirection = 0;
     static float rampRef = 0.0f;
 
+    float speedRpmSigned;
     float speedRpm;
+    float speedRefAbs;
     float error;
     float outUnlimited;
     float out;
     float outMin;
     float outMax;
+    int8_t targetDirection;
     uint8_t integrate;
 
     if (BLDC_Info.MotorRunStage != Motor_Run)
@@ -75,49 +89,63 @@ void BLDC_SpeedPID(void)
         return;
     }
 
-    /* Hall_Info.speed_filter 是边沿滤波后的电角速度，先换算成机械 RPM。 */
-    speedRpm = Hall_Info.speed_filter * 60.0f /
-               (2.0f * PI * (float)BLDC_POLE_PAIRS);
+    /* 速度反馈使用绝对值，输出电流始终为正。 */
+    speedRpmSigned = Hall_Info.speed_filter * 60.0f /
+                     (2.0f * PI * (float)BLDC_POLE_PAIRS);
+    speedRpm = fabsf(speedRpmSigned);
+    speedRefAbs = fabsf(FOC_Info.Speed_Ref);
+    targetDirection = (FOC_Info.Speed_Ref < 0.0f) ? -1 : 1;
+    if (speedLoopDirection != 0 && speedLoopDirection != targetDirection)
+    {
+        /* 需要换向时重新走开环启动，避免霍尔闭环下负电流失步。 */
+        speedLoopDirection = targetDirection;
+        speedLoopInited = 0;
+        FOC_Info.Iq_Ref = 0.0f;
+        BLDC_Info.MotorRunStage = Motor_Start_Idle;
+        return;
+    }
+    speedLoopDirection = targetDirection;
 
     if (speedLoopInited == 0)
     {
         speedLoopInited = 1;
         rampRef = speedRpm;
-        speed_pid.Integral = (speedRpm < FOC_Info.Speed_Ref) ?
+        speed_pid.Integral = (speedRpm < speedRefAbs) ?
                              FOC_Info.Iq_Ref : 0.0f;
         speed_pid.PrevErr = 0.0f;
     }
 
-    BLDC_Info.RPM = speedRpm;
+    BLDC_Info.RPM = speedRpmSigned;
 
-    if (rampRef < FOC_Info.Speed_Ref)
+    if (rampRef < speedRefAbs)
     {
         rampRef += SPEED_RAMP_RPM_PER_MS;
-        if (rampRef > FOC_Info.Speed_Ref)
+        if (rampRef > speedRefAbs)
         {
-            rampRef = FOC_Info.Speed_Ref;
+            rampRef = speedRefAbs;
         }
     }
-    else if (rampRef > FOC_Info.Speed_Ref)
+    else if (rampRef > speedRefAbs)
     {
         rampRef -= SPEED_RAMP_RPM_PER_MS;
-        if (rampRef < FOC_Info.Speed_Ref)
+        if (rampRef < speedRefAbs)
         {
-            rampRef = FOC_Info.Speed_Ref;
+            rampRef = speedRefAbs;
         }
     }
 
     error = rampRef - speedRpm;
     outUnlimited = speed_pid.Kp * error + speed_pid.Integral;
-    outMin = -SPEED_BRAKE_CURRENT_LIMIT;
-    outMax = speed_pid.Limit;
+    outMin = 0.0f;
+    outMax = SPEED_PID_LIMIT;
     out = Clampf(outUnlimited, outMin, outMax);
 
-    /* 只保留很小的反向制动电流，避免速度环把电机直接反拖停转。 */
+    /* 只输出正向电流；减速时输出为零，让电机自然滑行。 */
     integrate = ((outUnlimited > outMin) &&
                  (outUnlimited < outMax)) ||
                 ((error > 0.0f) && (outUnlimited <= outMin)) ||
-                ((error < 0.0f) && (outUnlimited >= outMax));
+                ((error < 0.0f) && (outUnlimited >= outMax)) ||
+                ((error < 0.0f) && (outUnlimited <= outMin));
     if (integrate != 0)
     {
         speed_pid.Integral += speed_pid.Ki * error * speed_pid.Ts;
@@ -166,6 +194,7 @@ static void FOC_Run(void)
 void BLDC_Run(void)
 {
 	uint8_t hall_state;
+	float startupDirection;
 	
 	/* 三相电流采集 */
 	BLDC_PhaseCurrentCal();
@@ -192,6 +221,17 @@ void BLDC_Run(void)
 			break;
 			
 		case Motor_Start_HallValid:
+			/* 每次启动都从干净的霍尔状态开始，方向由 Speed_Ref 决定。 */
+			Hall_Info.initialized = 0;
+			Hall_Info.direction = 0;
+			Hall_Info.pending_valid = 0;
+			Hall_Info.pending_direction = 0;
+			Hall_Info.pending_period = 0;
+			Hall_Info.speed = 0.0f;
+			Hall_Info.speed_filter = 0.0f;
+			Hall_Info.speed_filter_init = 0;
+			Hall_Info.hall_period = 0;
+			Hall_Info.new_event = 0;
 			/* hall中心角: 60°区间 + 30° */
 			Hall_Info.hall_angle = hall_angle_table[Hall_Info.state] + PI / 6.0f;
 			Hall_Info.hall_angle = Angle_Normalize(Hall_Info.hall_angle);
@@ -202,14 +242,12 @@ void BLDC_Run(void)
 			
 		case Motor_Start_Run:
 			FOC_Info.Id_Ref = 0.0f;
+			startupDirection = (FOC_Info.Speed_Ref < 0.0f) ? -1.0f : 1.0f;
 			FOC_Info.Iq_Ref = 1.0f;
 
 			/* 启动阶段开环推进电角度 */
-			Hall_Info.angle += 0.005f;
-			if (Hall_Info.angle >= TWO_PI)
-			{
-				Hall_Info.angle -= TWO_PI;
-			}
+			Hall_Info.angle = Angle_Normalize(Hall_Info.angle +
+			                                   startupDirection * 0.005f);
 			
 			if (Hall_Info.new_event == 1)
 			{

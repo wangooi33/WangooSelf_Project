@@ -9,6 +9,7 @@ extern "C" {
 #include "main.h"
 
 /* macro ---------------------------------------------------------------------*/
+#define BLDC_MAX_SPEED_RPM			(2000.0f)
 
 /* 电机硬件参数 */
 #define BLDC_POLE_PAIRS				(2U)			/* 电机极对数 */
@@ -56,6 +57,9 @@ void BLDC_Disable(void);
 void BLDC_PidInit(void);
 void BLDC_Run(void);
 void BLDC_SpeedPID(void);
+/* 有符号 RPM：正值为正转，负值为反转。 */
+void BLDC_SetSpeedRef(float speedRpm);
+float BLDC_GetSpeedRef(void);
 
 
 #ifdef __cplusplus

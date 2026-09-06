@@ -20,6 +20,8 @@ const float hall_angle_table[8] =
 
 /* macro ---------------------------------------------------------------------*/
 #define HALL_SPEED_FILTER_ALPHA	(0.15f)
+/* 低速换向时可直接接受与命令方向一致的霍尔沿。 */
+#define HALL_DIR_CHANGE_SPEED_LIMIT	(30.0f)
 
 /* public functions ----------------------------------------------------------*/
 float Angle_Normalize(float angle)
@@ -91,7 +93,11 @@ uint8_t Hall_ReadState(void)
 void Hall_UpdateEdge(uint8_t hall_state, uint32_t hall_period)
 {
 	int8_t dir;
-	uint8_t reverseAccepted = 0;
+	int8_t commandedDirection;
+	int8_t previousDirection;
+	uint8_t confirmedReversal = 0;
+	uint8_t commandDirectionAccepted = 0;
+	uint8_t speedFilterReset = 0;
 	float angleStep;
 
 	if (hall_state == 0x0 || hall_state == 0x7)
@@ -131,7 +137,17 @@ void Hall_UpdateEdge(uint8_t hall_state, uint32_t hall_period)
 		return;
 	}
 
-	if (Hall_Info.direction != 0 && dir != Hall_Info.direction)
+	commandedDirection = (FOC_Info.Speed_Ref < 0.0f) ? -1 : 1;
+	if (dir == commandedDirection &&
+	    (Hall_Info.direction == 0 ||
+	     (Hall_Info.speed_filter > -HALL_DIR_CHANGE_SPEED_LIMIT &&
+	      Hall_Info.speed_filter < HALL_DIR_CHANGE_SPEED_LIMIT)))
+	{
+		commandDirectionAccepted = 1;
+	}
+	if (Hall_Info.direction != 0 &&
+	    dir != Hall_Info.direction &&
+	    commandDirectionAccepted == 0)
 	{
 		if (Hall_Info.pending_valid == 0)
 		{
@@ -149,9 +165,10 @@ void Hall_UpdateEdge(uint8_t hall_state, uint32_t hall_period)
 		}
 
 		/* 连续两个同向反向边沿才确认真反转。 */
-		reverseAccepted = 1;
+		confirmedReversal = 1;
 		hall_period += Hall_Info.pending_period;
 	}
+	previousDirection = Hall_Info.direction;
 	Hall_Info.pending_valid = 0;
 	Hall_Info.pending_direction = 0;
 	Hall_Info.pending_period = 0;
@@ -160,11 +177,15 @@ void Hall_UpdateEdge(uint8_t hall_state, uint32_t hall_period)
 	Hall_Info.state = hall_state;
 	Hall_Info.direction = dir;
 	Hall_Info.hall_period = hall_period;
+	if (previousDirection != 0 && previousDirection != dir)
+	{
+		speedFilterReset = 1;
+	}
 
 	/* 计时器频率 = 1MHz */
-	angleStep = reverseAccepted ? (2.0f * HALL_STEP_ANGLE) : HALL_STEP_ANGLE;
+	angleStep = confirmedReversal ? (2.0f * HALL_STEP_ANGLE) : HALL_STEP_ANGLE;
 	Hall_Info.speed = (float)dir * angleStep * (float)HALL_TIMER_HZ / (float)hall_period;
-	if (Hall_Info.speed_filter_init == 0)
+	if (speedFilterReset || Hall_Info.speed_filter_init == 0)
 	{
 		Hall_Info.speed_filter = Hall_Info.speed;
 		Hall_Info.speed_filter_init = 1;

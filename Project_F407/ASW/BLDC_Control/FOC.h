@@ -39,7 +39,7 @@ typedef struct
 	/* ---- 期待值 ---- */
 	volatile float Id_Ref;		/* d轴电流目标 (励磁) */
 	volatile float Iq_Ref;		/* q轴电流目标 (力矩) */
-	volatile float Speed_Ref;	/* 速度环目标 (RPM) */
+	volatile float Speed_Ref;	/* 有符号速度环目标 (RPM) */
 	float Position_Ref;			/* 位置环目标 (机械角度) */
 } FOC_Info_t;
 

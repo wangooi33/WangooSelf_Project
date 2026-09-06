@@ -1,6 +1,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "key.h"
 #include "foc.h"
+#include "bldc_control.h"
 
 /* variable ------------------------------------------------------------------*/
 uint8_t KeyCnt[5] = {0};
@@ -54,6 +55,7 @@ void KeyTask_Cyclic( void )
 			break;
 
 		case KEY3_PRESS:
+			BLDC_SetSpeedRef(-BLDC_GetSpeedRef());
 			break;
 
 		case KEY4_PRESS:
