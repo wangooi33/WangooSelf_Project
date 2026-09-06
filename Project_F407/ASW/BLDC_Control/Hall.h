@@ -14,24 +14,30 @@ extern "C" {
 #define HALL_TIMER_HZ			(1000000U)
 /* 小于1ms的扇区沿视为毛刺,对应机械转速上限约5000RPM。 */
 #define HALL_MIN_PERIOD_COUNT	(1000U)
+#define HALL_SPEED_TIMEOUT_MS	(100U)
 
 /* types ---------------------------------------------------------------------*/
 typedef struct
 {
-	uint8_t state;					/* 当前霍尔编码状态，合法值 1~6 */
-	uint8_t last_state;				/* 上一次有效霍尔编码状态 */
-	float angle;					/* Park使用的连续电角度 */
-	float hall_angle;				/* Hall当前状态对应的离散位置 */
-	volatile float speed;			/* 电角速度 rad/s */
-	volatile float speed_filter;	/* 速度滤波值,由速度环读取 */
-	uint8_t speed_filter_init;		/* 标记speed_filter是否已有首个有效数据 */
-	uint32_t hall_period;			/* 最近有效霍尔边沿周期,单位us */
-	int8_t direction;				/* 已确认的当前方向: +1正转,-1反转,0未确定 */
-	int8_t pending_direction;		/* 待确认反向边沿的方向 */
-	uint32_t pending_period;		/* 待确认反向边沿的周期计数值,单位us */
-	uint8_t pending_valid;			/* 是否已有待确认的反向边沿,连续两个同向边沿才确认反转 */
-	uint8_t initialized;			/* 是否已完成首次霍尔角度初始化 */
-	uint8_t new_event;				/* 是否产生了新的有效霍尔边沿 */
+	uint8_t state;								/* 当前霍尔编码状态，合法值 1~6 */
+	uint8_t last_state;							/* 上一次有效霍尔编码状态 */
+	float angle;								/* Park使用的连续电角度 */
+	float hall_angle;							/* Hall当前状态对应的离散位置 */
+	volatile float speed;						/* 电角速度 rad/s */
+	volatile float speed_filter;				/* 速度滤波值,由速度环读取 */
+	uint8_t speed_filter_init;					/* 标记speed_filter是否已有首个有效数据 */
+	uint32_t hall_period;						/* 最近有效霍尔边沿周期,单位us */
+	int8_t direction;							/* 已确认的当前方向: +1正转,-1反转,0未确定 */
+	int8_t pending_direction;					/* 待确认反向边沿的方向 */
+	uint32_t pending_period;					/* 待确认反向边沿的周期计数值,单位us */
+	uint8_t pending_valid;						/* 是否已有待确认的反向边沿,连续两个同向边沿才确认反转 */
+	uint8_t initialized;						/* 是否已完成首次霍尔角度初始化 */
+	volatile int8_t commanded_direction;		/* 当前控制环要求的霍尔方向 */
+	volatile uint32_t last_event_ms;			/* 最近有效霍尔边沿时刻 */
+	volatile int32_t hall_step_count;			/* 已确认霍尔扇区步数 */
+	volatile float unwrapped_electrical_deg;	/* 解包相对电角度,单位度 */
+	volatile float position_turns;				/* 相对机械圈数 */
+	uint8_t new_event;							/* 是否产生了新的有效霍尔边沿 */
 } Hall_Info_t;
 
 /* global variable -----------------------------------------------------------*/

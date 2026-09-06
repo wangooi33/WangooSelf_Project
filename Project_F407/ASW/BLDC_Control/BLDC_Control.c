@@ -61,6 +61,99 @@ float BLDC_GetSpeedRef(void)
 	return FOC_Info.Speed_Ref;
 }
 
+void BLDC_SetPositionRef(float turns)
+{
+	FOC_Info.Position_Ref = turns;
+}
+
+float BLDC_GetCurrentTurns(void)
+{
+	return Hall_Info.position_turns;
+}
+
+uint8_t BLDC_PositionPID(void)
+{
+	/* 定位任务期间保持的本地状态 */
+	static uint8_t active = 0;
+	static float lastRef = 0.0f;
+	static float startSteps = 0.0f;
+	static float commandedElectricalDeg = 0.0f;
+
+	float targetTurns;
+	float targetSteps;
+	float traveledSteps;
+	float direction;
+	float speedRpm;
+	float stepElectricalDeg;
+	float oneHallTurn;
+
+	/* 目标位置只取幅值，运动方向由原始给定值的符号决定 */
+	targetTurns = fabsf(FOC_Info.Position_Ref);
+	oneHallTurn = 1.0f / (6.0f * (float)BLDC_POLE_PAIRS);
+	if (targetTurns < 0.0001f)
+	{
+		/* 无有效位置指令，退出定位模式，交回速度环 */
+		active = 0;
+		lastRef = 0.0f;
+		return 0;
+	}
+
+	if (active == 0 || FOC_Info.Position_Ref != lastRef)
+	{
+		/* 首次进入或指令变化时，以当前霍尔步数作为本次行程起点 */
+		active = 1;
+		lastRef = FOC_Info.Position_Ref;
+		startSteps = (float)Hall_Info.hall_step_count;
+		commandedElectricalDeg = 0.0f;
+	}
+
+	/* 一对极对应6个霍尔沿，因此目标步数 = 圈数 * 极对数 * 6 */
+	targetSteps = targetTurns * (6.0f * (float)BLDC_POLE_PAIRS);
+	traveledSteps = fabsf((float)Hall_Info.hall_step_count - startSteps);
+	if (traveledSteps >= targetSteps)
+	{
+		/* 已走完目标步数，停止输出并清除位置指令 */
+		FOC_Info.Iq_Ref = 0.0f;
+		FOC_Info.Position_Ref = 0.0f;
+		lastRef = 0.0f;
+		active = 0;
+		return 0;
+	}
+
+	/* 原始位置指令为正时正转，为负时反转 */
+	direction = (FOC_Info.Position_Ref > 0.0f) ? 1.0f : -1.0f;
+	/* 将滤波后的电角速度折算为带符号机械转速 */
+	speedRpm = Hall_Info.speed_filter * 60.0f / (2.0f * PI * (float)BLDC_POLE_PAIRS);
+	BLDC_Info.RPM = speedRpm;
+
+	if (fabsf(speedRpm) > BLDC_POSITION_MAX_RPM)
+	{
+		/* 超过定位限速时停止输出，避免位置环持续加速 */
+		FOC_Info.Iq_Ref = 0.0f;
+	}
+	else
+	{
+		/* 未超速时用固定q轴电流推动电机 */
+		FOC_Info.Iq_Ref = BLDC_POSITION_CURRENT;
+	}
+
+	/* 按固定电角步长推进转子角度，方向由位置指令决定 */
+	Hall_Info.angle = Angle_Normalize(Hall_Info.angle + direction * BLDC_POSITION_START_ANGLE_STEP);
+	stepElectricalDeg = BLDC_POSITION_START_ANGLE_STEP * (180.0f / PI);
+	commandedElectricalDeg += stepElectricalDeg;
+	if (targetTurns < oneHallTurn && commandedElectricalDeg >= targetTurns * (float)BLDC_POLE_PAIRS * 360.0f)
+	{
+		/* 不足一个霍尔扇区的短行程，用累计推进电角度判断是否到位 */
+		FOC_Info.Iq_Ref = 0.0f;
+		FOC_Info.Position_Ref = 0.0f;
+		lastRef = 0.0f;
+		active = 0;
+		return 0;
+	}
+
+	return 1;
+}
+
 void BLDC_SpeedPID(void)
 {
 	static uint8_t speedLoopInited = 0;

@@ -4,6 +4,7 @@
 #include "key.h"
 #include "hall.h"
 #include "bldc_control.h"
+#include "foc.h"
 
 /* global variable -----------------------------------------------------------*/
 volatile uint32_t SystemRunTime_1ms = 0;
@@ -15,7 +16,15 @@ uint32_t GetTick_1ms(void)
 }
 void Task_1ms()
 {
-	BLDC_SpeedPID();
+	if (BLDC_PositionPID() == 0)
+	{
+		Hall_Info.commanded_direction = (FOC_Info.Speed_Ref < 0.0f) ? -1 : 1;
+		BLDC_SpeedPID();
+	}
+	else
+	{
+		Hall_Info.commanded_direction = (FOC_Info.Position_Ref < 0.0f) ? -1 : 1;
+	}
 }
 void Task_2ms()
 {

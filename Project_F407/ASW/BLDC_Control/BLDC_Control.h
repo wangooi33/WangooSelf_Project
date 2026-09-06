@@ -18,6 +18,12 @@ extern "C" {
 
 #define Wc							(1000 * PI)		/* ωc */
 
+/* 位置环参数，Position_Ref 单位为机械圈数 */
+#define BLDC_POSITION_CURRENT		(1.2f)
+#define BLDC_POSITION_MAX_RPM		(150.0f)
+#define BLDC_POSITION_DEADBAND_TURNS	(7.0f / 360.0f)
+#define BLDC_POSITION_START_ANGLE_STEP	(0.05f)
+
 /* shutdown */
 #define BLDC_SD_ENABLE()			HAL_GPIO_WritePin(SD_GPIO_Port, SD_Pin, GPIO_PIN_SET)
 #define BLDC_SD_DISABLE() 			HAL_GPIO_WritePin(SD_GPIO_Port, SD_Pin, GPIO_PIN_RESET)
@@ -60,6 +66,9 @@ void BLDC_SpeedPID(void);
 /* 有符号RPM: 正值为正转,负值为反转 */
 void BLDC_SetSpeedRef(float speedRpm);
 float BLDC_GetSpeedRef(void);
+void BLDC_SetPositionRef(float turns);
+float BLDC_GetCurrentTurns(void);
+uint8_t BLDC_PositionPID(void);
 
 
 #ifdef __cplusplus
