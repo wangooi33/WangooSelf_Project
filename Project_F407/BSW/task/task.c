@@ -3,6 +3,7 @@
 #include "w_adc.h"
 #include "key.h"
 #include "hall.h"
+#include "bldc_control.h"
 
 /* global variable -----------------------------------------------------------*/
 volatile uint32_t SystemRunTime_1ms = 0;
@@ -14,7 +15,7 @@ uint32_t GetTick_1ms(void)
 }
 void Task_1ms()
 {
-	//BLDC_SpeedPID();
+	BLDC_SpeedPID();
 }
 void Task_2ms()
 {

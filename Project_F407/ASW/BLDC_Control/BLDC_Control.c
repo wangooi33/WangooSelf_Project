@@ -7,6 +7,13 @@
 #include "pid.h"
 #include "hall.h"
 
+/* macro ---------------------------------------------------------------------*/
+#define SPEED_RAMP_RPM_PER_MS		(0.05f)		/* 50 RPM/s */
+#define SPEED_PID_KP				(0.01f)
+#define SPEED_PID_KI				(0.005f)
+#define SPEED_PID_LIMIT				(3.0f)
+#define SPEED_BRAKE_CURRENT_LIMIT	(0.5f)
+
 /* global variable -----------------------------------------------------------*/
 BLDC_Info_t BLDC_Info;
 PID_t d_pid;
@@ -44,66 +51,82 @@ void BLDC_PidInit(void)
 	PID_Init(&d_pid,1.0f,0.5f,0,(24.0f * SQRT3 / 3.0f),0,0.0001f);
 	PID_Init(&q_pid,1.0f,0.5f,0,(24.0f * SQRT3 / 3.0f),0,0.0001f);
 	
-	PID_Init(&speed_pid,0.03f,0.02f,0,4.0f,0.5f,0.001f);
+	PID_Init(&speed_pid,SPEED_PID_KP,SPEED_PID_KI,0,
+	         SPEED_PID_LIMIT,0.0f,0.001f);
 	FOC_Info.Speed_Ref = 400.0f;
 }
 
-#if 0
 void BLDC_SpeedPID(void)
 {
-	float error,out;
-	static uint8_t speedInit = 0;
-	static float rampRef = 0.0f;
-	float speed_rpm = Hall_Info.Speed_RPM;
-	
-	BLDC_Info.RPM = speed_rpm;
-	if (BLDC_Info.Direction == 1)
-	{
-		speed_rpm = speed_rpm;
-	}
-	else
-	{
-		speed_rpm = -speed_rpm;
-	}
-	if (speedInit == 0)
-	{
-		rampRef = speed_rpm;
-		speed_pid.Integral = FOC_Info.Iq_Ref;
-		speed_pid.PrevErr = 0.0f;
-		speedInit = 1;
-	}
+    static uint8_t speedLoopInited = 0;
+    static float rampRef = 0.0f;
 
-	/* 约 20 RPM/s 的斜坡 */
-	if (rampRef > FOC_Info.Speed_Ref)
-	{
-		rampRef -= 0.02f;
-		if (rampRef < FOC_Info.Speed_Ref)
-		{
-			rampRef = FOC_Info.Speed_Ref;
-		}
-	}
-	else if (rampRef < FOC_Info.Speed_Ref)
-	{
-		rampRef += 0.02f;
-		if (rampRef > FOC_Info.Speed_Ref)
-		{
-			rampRef = FOC_Info.Speed_Ref;
-		}
+    float speedRpm;
+    float error;
+    float outUnlimited;
+    float out;
+    float outMin;
+    float outMax;
+    uint8_t integrate;
+
+    if (BLDC_Info.MotorRunStage != Motor_Run)
+    {
+        speedLoopInited = 0;
+        return;
     }
-	error = rampRef - speed_rpm;
-	out = speed_pid.Kp * error + speed_pid.Integral;
 
-	/* 只有未饱和时才积分，防止反向制动时积分越积越负 */
-	if (out > -speed_pid.Limit && out < speed_pid.Limit)
-	{
-		speed_pid.Integral += speed_pid.Ki * error * speed_pid.Ts;
-	}
-	speed_pid.Integral = Clampf(speed_pid.Integral, -speed_pid.Limit, speed_pid.Limit);
+    /* Hall_Info.speed_filter 是边沿滤波后的电角速度，先换算成机械 RPM。 */
+    speedRpm = Hall_Info.speed_filter * 60.0f /
+               (2.0f * PI * (float)BLDC_POLE_PAIRS);
 
-	/* 限幅 */
-	FOC_Info.Iq_Ref = Clampf(out,-speed_pid.Limit,speed_pid.Limit);
+    if (speedLoopInited == 0)
+    {
+        speedLoopInited = 1;
+        rampRef = speedRpm;
+        speed_pid.Integral = (speedRpm < FOC_Info.Speed_Ref) ?
+                             FOC_Info.Iq_Ref : 0.0f;
+        speed_pid.PrevErr = 0.0f;
+    }
+
+    BLDC_Info.RPM = speedRpm;
+
+    if (rampRef < FOC_Info.Speed_Ref)
+    {
+        rampRef += SPEED_RAMP_RPM_PER_MS;
+        if (rampRef > FOC_Info.Speed_Ref)
+        {
+            rampRef = FOC_Info.Speed_Ref;
+        }
+    }
+    else if (rampRef > FOC_Info.Speed_Ref)
+    {
+        rampRef -= SPEED_RAMP_RPM_PER_MS;
+        if (rampRef < FOC_Info.Speed_Ref)
+        {
+            rampRef = FOC_Info.Speed_Ref;
+        }
+    }
+
+    error = rampRef - speedRpm;
+    outUnlimited = speed_pid.Kp * error + speed_pid.Integral;
+    outMin = -SPEED_BRAKE_CURRENT_LIMIT;
+    outMax = speed_pid.Limit;
+    out = Clampf(outUnlimited, outMin, outMax);
+
+    /* 只保留很小的反向制动电流，避免速度环把电机直接反拖停转。 */
+    integrate = ((outUnlimited > outMin) &&
+                 (outUnlimited < outMax)) ||
+                ((error > 0.0f) && (outUnlimited <= outMin)) ||
+                ((error < 0.0f) && (outUnlimited >= outMax));
+    if (integrate != 0)
+    {
+        speed_pid.Integral += speed_pid.Ki * error * speed_pid.Ts;
+    }
+    speed_pid.Integral = Clampf(speed_pid.Integral, outMin, outMax);
+    speed_pid.PrevErr = error;
+
+    FOC_Info.Iq_Ref = out;
 }
-#endif
 
 void BLDC_CurrentPID(void)
 {

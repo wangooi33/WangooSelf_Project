@@ -43,7 +43,7 @@ typedef struct
 	float MotorTemperature;			/* 电机温度 */
 
 	float Theta;					/* FOC电角度 */
-	MotorRunStage_t MotorRunStage;
+	volatile MotorRunStage_t MotorRunStage;
 	float RPM;
 } BLDC_Info_t;
 

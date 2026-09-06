@@ -18,6 +18,9 @@ const float hall_angle_table[8] =
 	0.0f
 };
 
+/* macro ---------------------------------------------------------------------*/
+#define HALL_SPEED_FILTER_ALPHA	(0.15f)
+
 /* public functions ----------------------------------------------------------*/
 float Angle_Normalize(float angle)
 {
@@ -30,6 +33,10 @@ float Angle_Normalize(float angle)
 		angle += TWO_PI;
 	}
 	return angle;
+}
+static float Hall_GetStateAngle(uint8_t hall_state)
+{
+	return Angle_Normalize(hall_angle_table[hall_state] + PI / 6.0f);
 }
 int Hall_GetIndex(uint8_t state)
 {
@@ -84,6 +91,8 @@ uint8_t Hall_ReadState(void)
 void Hall_UpdateEdge(uint8_t hall_state, uint32_t hall_period)
 {
 	int8_t dir;
+	uint8_t reverseAccepted = 0;
+	float angleStep;
 
 	if (hall_state == 0x0 || hall_state == 0x7)
 	{
@@ -94,32 +103,80 @@ void Hall_UpdateEdge(uint8_t hall_state, uint32_t hall_period)
 	{
 		Hall_Info.state = hall_state;
 		Hall_Info.last_state = hall_state;
-		Hall_Info.hall_angle =Angle_Normalize(hall_angle_table[hall_state] + PI / 6.0f);
+		Hall_Info.hall_angle = Hall_GetStateAngle(hall_state);
 		Hall_Info.angle = Hall_Info.hall_angle;
 		Hall_Info.initialized = 1;
 		return;
 	}
 	if (hall_state == Hall_Info.state)
 	{
+		Hall_Info.pending_valid = 0;
+		Hall_Info.pending_direction = 0;
+		Hall_Info.pending_period = 0;
 		return;
 	}
 	dir = Hall_GetDirection(Hall_Info.state,hall_state);
 	if (dir == 0)
 	{
+		Hall_Info.pending_valid = 0;
+		Hall_Info.pending_direction = 0;
+		Hall_Info.pending_period = 0;
 		return;
 	}
-	if (hall_period == 0 || hall_period > 65535)
+	if (hall_period < HALL_MIN_PERIOD_COUNT || hall_period > 65535U)
 	{
+		Hall_Info.pending_valid = 0;
+		Hall_Info.pending_direction = 0;
+		Hall_Info.pending_period = 0;
 		return;
 	}
+
+	if (Hall_Info.direction != 0 && dir != Hall_Info.direction)
+	{
+		if (Hall_Info.pending_valid == 0)
+		{
+			Hall_Info.pending_valid = 1;
+			Hall_Info.pending_direction = dir;
+			Hall_Info.pending_period = hall_period;
+			return;
+		}
+
+		if (Hall_Info.pending_direction != dir)
+		{
+			Hall_Info.pending_direction = dir;
+			Hall_Info.pending_period = hall_period;
+			return;
+		}
+
+		/* 连续两个同向反向边沿才确认真反转。 */
+		reverseAccepted = 1;
+		hall_period += Hall_Info.pending_period;
+	}
+	Hall_Info.pending_valid = 0;
+	Hall_Info.pending_direction = 0;
+	Hall_Info.pending_period = 0;
+
 	Hall_Info.last_state = Hall_Info.state;
 	Hall_Info.state = hall_state;
 	Hall_Info.direction = dir;
 	Hall_Info.hall_period = hall_period;
 
 	/* 计时器频率 = 1MHz */
-	Hall_Info.speed = (float)dir * HALL_STEP_ANGLE * 1000000.0f / (float)hall_period;
-	Hall_Info.hall_angle =  Angle_Normalize(hall_angle_table[hall_state] + PI / 6.0f);
+	angleStep = reverseAccepted ? (2.0f * HALL_STEP_ANGLE) : HALL_STEP_ANGLE;
+	Hall_Info.speed = (float)dir * angleStep * (float)HALL_TIMER_HZ / (float)hall_period;
+	if (Hall_Info.speed_filter_init == 0)
+	{
+		Hall_Info.speed_filter = Hall_Info.speed;
+		Hall_Info.speed_filter_init = 1;
+	}
+	else
+	{
+		Hall_Info.speed_filter += HALL_SPEED_FILTER_ALPHA *
+			(Hall_Info.speed - Hall_Info.speed_filter);
+	}
+	Hall_Info.hall_angle = Hall_GetStateAngle(hall_state);
+	/* 每个扇区重新锚定插值角度，防止加速过程中误差持续累积。 */
+	Hall_Info.angle = Hall_Info.hall_angle;
 
 	Hall_Info.new_event = 1;
 }
