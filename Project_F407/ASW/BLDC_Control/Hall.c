@@ -90,6 +90,7 @@ uint8_t Hall_ReadState(void)
 
 	return hall_state;
 }
+
 void Hall_UpdateEdge(uint8_t hall_state, uint32_t hall_period)
 {
 	int8_t dir;
@@ -140,14 +141,11 @@ void Hall_UpdateEdge(uint8_t hall_state, uint32_t hall_period)
 	commandedDirection = (FOC_Info.Speed_Ref < 0.0f) ? -1 : 1;
 	if (dir == commandedDirection &&
 	    (Hall_Info.direction == 0 ||
-	     (Hall_Info.speed_filter > -HALL_DIR_CHANGE_SPEED_LIMIT &&
-	      Hall_Info.speed_filter < HALL_DIR_CHANGE_SPEED_LIMIT)))
+	     (Hall_Info.speed_filter > -HALL_DIR_CHANGE_SPEED_LIMIT && Hall_Info.speed_filter < HALL_DIR_CHANGE_SPEED_LIMIT)))
 	{
 		commandDirectionAccepted = 1;
 	}
-	if (Hall_Info.direction != 0 &&
-	    dir != Hall_Info.direction &&
-	    commandDirectionAccepted == 0)
+	if (Hall_Info.direction != 0 && dir != Hall_Info.direction && commandDirectionAccepted == 0)
 	{
 		if (Hall_Info.pending_valid == 0)
 		{
@@ -196,7 +194,7 @@ void Hall_UpdateEdge(uint8_t hall_state, uint32_t hall_period)
 			(Hall_Info.speed - Hall_Info.speed_filter);
 	}
 	Hall_Info.hall_angle = Hall_GetStateAngle(hall_state);
-	/* 每个扇区重新锚定插值角度，防止加速过程中误差持续累积。 */
+	/* 每个扇区重新锚定插值角度,防止加速过程中误差持续累积。 */
 	Hall_Info.angle = Hall_Info.hall_angle;
 
 	Hall_Info.new_event = 1;

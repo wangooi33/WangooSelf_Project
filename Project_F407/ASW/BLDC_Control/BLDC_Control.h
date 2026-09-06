@@ -57,7 +57,7 @@ void BLDC_Disable(void);
 void BLDC_PidInit(void);
 void BLDC_Run(void);
 void BLDC_SpeedPID(void);
-/* 有符号 RPM：正值为正转，负值为反转。 */
+/* 有符号RPM: 正值为正转,负值为反转 */
 void BLDC_SetSpeedRef(float speedRpm);
 float BLDC_GetSpeedRef(void);
 
